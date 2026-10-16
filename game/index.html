@@ -7,8 +7,8 @@
     <meta name="description" content="蹬上台阶，坐着转椅开溜。跳跃、飞行，抱着猫猫和水獭去星空冒险。" />
     <title>即刻开溜 · Jike Run</title>
     <link rel="icon" type="image/svg+xml" href="./assets/logo.svg?v=20261016-17-stool-c" />
-    <link rel="stylesheet" href="./style.css?v=20261016-25-eight-cities" />
-    <script type="module" src="./main.js?v=20261016-25-eight-cities"></script>
+    <link rel="stylesheet" href="./style.css?v=20261016-26-jicoin" />
+    <script type="module" src="./main.js?v=20261016-26-jicoin"></script>
   </head>
   <body>
     <main class="app-shell">
@@ -41,7 +41,7 @@
 
             <div id="hud" class="hud" hidden>
               <div class="score-block"><span class="hud-label">本局得分</span><strong id="score">00000</strong><span id="distance" class="distance">0 m</span></div>
-              <div class="best-block"><span class="hud-label">个人最佳 <span aria-hidden="true">✦</span></span><strong id="best">00000</strong></div>
+              <div class="best-block"><span class="hud-label">个人最佳 <span aria-hidden="true">✦</span></span><strong id="best">00000</strong><div id="coin-badge" class="coin-badge" role="status" aria-live="polite" hidden><img src="./assets/jicoin.svg" width="24" height="24" alt="" /><span id="coin-count">即币×1</span></div></div>
             </div>
 
             <div id="toast" class="game-toast" role="status" aria-live="polite" hidden></div>
@@ -68,7 +68,14 @@
               <p id="result-caption">椅子没事，人也还行。</p>
               <div class="result-score"><strong id="final-score">0</strong><span>本局得分</span></div>
               <div class="result-stats"><span>滑行 <b id="final-distance">0 m</b></span><span>最佳 <b id="final-best">0</b></span></div>
-              <button id="restart-button" class="primary-button" type="button">再溜一次 <span aria-hidden="true">↻</span></button>
+              <button id="restart-button" class="primary-button" type="button">再试一把 <span aria-hidden="true">↻</span></button>
+            </section>
+
+            <section id="revive-panel" class="revive-panel overlay-panel" aria-labelledby="revive-title" hidden>
+              <img class="revive-coin" src="./assets/jicoin.svg" width="88" height="88" alt="即币" />
+              <h2 id="revive-title">你拥有<span id="revive-count">1</span>枚即币</h2>
+              <p>消耗一枚</p>
+              <button id="revive-button" class="primary-button" type="button">原地复活</button>
             </section>
 
             <div id="ready-footer" class="ready-footer">CREAT IN SINGAPORE WITH LOVE</div>

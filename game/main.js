@@ -1,5 +1,5 @@
-import { createGame, CONFIG } from './engine.js?v=20261016-23-narrow-stool';
-import { Renderer } from './render.js?v=20261016-25-eight-cities';
+import { createGame, CONFIG } from './engine.js?v=20261016-26-jicoin';
+import { Renderer } from './render.js?v=20261016-26-jicoin';
 import { GameAudio } from './audio.js?v=20261016-17-stool-c';
 import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261016-23-narrow-stool';
 import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.js?v=20261016-25-eight-cities';
@@ -10,6 +10,7 @@ const ui = Object.fromEntries([
   'hud', 'score', 'distance', 'best', 'toast', 'power-strip', 'jump-cue', 'action-dock', 'action-button',
   'action-icon', 'action-label', 'action-key-hint', 'play-hint', 'pause-panel', 'result-panel', 'final-score',
   'final-distance', 'final-best', 'result-eyebrow', 'result-caption', 'sound-button', 'pause-button',
+  'coin-badge', 'coin-count', 'revive-panel', 'revive-count',
 ].map((id) => [id, $(id)]));
 
 function readStorage(key, fallback) {
@@ -71,7 +72,7 @@ function setupStylePanel() {
   $('city-auto').addEventListener('click', () => {
     cityMode = 'auto';
     writeStorage('jike-run-city-mode', cityMode);
-    if (['ready', 'gameover'].includes(game.state.phase)) renderer.city = nextCity;
+    if (game.state.phase === 'ready' || (game.state.phase === 'gameover' && !game.state.jicoins)) renderer.city = nextCity;
     updateStyleChoices();
   });
   $('style-button').addEventListener('click', () => {
@@ -82,7 +83,7 @@ function setupStylePanel() {
   $('style-done').addEventListener('click', () => {
     $('style-panel').close();
     if (game.state.phase === 'paused') resume();
-    else if (['ready', 'gameover'].includes(game.state.phase)) start();
+    else if (game.state.phase === 'ready' || (game.state.phase === 'gameover' && !game.state.jicoins)) start();
   });
   updateStyleChoices();
 }
@@ -101,6 +102,7 @@ function pickupMessage(type) {
   double: `跳得更远！空中再${touchControls ? '点一次' : '按一次空格'}，二段跳。`,
   flight: `飞起来了！${jump}向上飞，停下来慢慢下降。`,
   reminder: '跳跃提醒！看到圆圈就起跳。',
+  jicoin: '即币 +1！摔倒后可消耗一枚，原地复活。',
   }[type];
 }
 
@@ -128,6 +130,10 @@ const game = createGame({ onEvent(event) {
       hintPending = false;
       writeStorage('jike-run-controls-seen', 'true');
     }
+  } else if (event.type === 'revive') {
+    audio.stop();
+    audio.play('start');
+    showToast('原地复活！得分保留，继续开溜。');
   } else if (event.type === 'pickup') {
     audio.play('pickup');
     showToast(pickupMessage(event.pickupType));
@@ -192,9 +198,18 @@ function resume() {
 function jumpAction() {
   audio.prepare();
   const phase = game.state.phase;
-  if (phase === 'ready' || phase === 'gameover') start();
+  if (phase === 'ready' || (phase === 'gameover' && !game.state.jicoins)) start();
   else if (phase === 'paused') resume();
   else game.jump();
+}
+
+function revive() {
+  audio.prepare();
+  if (!game.revive()) return;
+  accumulator = 0;
+  lastFrame = performance.now();
+  updateUI();
+  ui['game-frame'].focus({ preventScroll: true });
 }
 
 function skillAction() {
@@ -204,6 +219,7 @@ function skillAction() {
 
 $('start-button').addEventListener('click', start);
 $('restart-button').addEventListener('click', start);
+$('revive-button').addEventListener('click', revive);
 $('resume-button').addEventListener('click', resume);
 ui['sound-button'].addEventListener('click', () => {
   muted = !muted;
@@ -327,7 +343,9 @@ function updateUI() {
     for (const id of ['welcome', 'hero-sticker', 'ready-footer']) ui[id].hidden = !ready;
     ui.hud.hidden = ready || finished;
     ui['pause-panel'].hidden = !paused;
-    ui['result-panel'].hidden = !finished;
+    ui['result-panel'].hidden = !(finished && state.jicoins === 0);
+    ui['revive-panel'].hidden = !(finished && state.jicoins > 0);
+    ui['revive-count'].textContent = state.jicoins;
     ui['power-strip'].hidden = ready || finished || state.phase === 'falling';
     ui['pause-button'].disabled = ready || finished;
     ui['pause-button'].innerHTML = pauseIcons[paused ? 'play' : 'pause'];
@@ -348,6 +366,9 @@ function updateUI() {
   ui.score.textContent = String(state.score).padStart(5, '0');
   ui.best.textContent = String(best).padStart(5, '0');
   ui.distance.textContent = `${Math.floor(state.distance / 10)} m`;
+  ui['coin-badge'].hidden = state.jicoins === 0;
+  const coinLabel = `即币×${state.jicoins}`;
+  if (ui['coin-count'].textContent !== coinLabel) ui['coin-count'].textContent = coinLabel;
   updatePowers();
   ui['play-hint'].hidden = !(state.phase === 'running' && playHintTime > 0);
   ui['jump-cue'].hidden = !(state.phase === 'running' && state.reminderCue > 0);

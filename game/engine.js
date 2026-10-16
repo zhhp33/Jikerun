@@ -29,6 +29,7 @@ export const CONFIG = Object.freeze({
   flightFallSpeed: 220,
   landingFallSpeed: 170,
   graceSeconds: 1,
+  reviveGraceSeconds: 1,
   footballCooldown: 0.3,
   catCooldown: 0.6,
   catRange: 650,
@@ -59,7 +60,7 @@ export const OBSTACLE_VARIANTS = Object.freeze([
 const EPSILON = 1e-8;
 const PICKUP_WEIGHTS = Object.freeze({
   star: 1, bird: 1, football: 1, guoguo: 2, keke: 1,
-  otter: 1, high: 1, double: 1, flight: 1, reminder: 1,
+  otter: 1, high: 1, double: 1, flight: 1, reminder: 1, jicoin: 1,
 });
 const CAT_TYPES = ['guoguo', 'keke', 'otter'];
 const MOVEMENT_TYPES = ['high', 'double', 'flight'];
@@ -73,6 +74,7 @@ export function freshState() {
     distance: 0,
     score: 0,
     bonus: 0,
+    jicoins: 0,
     speed: CONFIG.kickoffSpeed,
     runTime: 0,
     player: { x: CONFIG.playerX, y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false },
@@ -357,10 +359,26 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     emit('resume');
   }
 
+  function revive() {
+    if (state.phase !== 'gameover' || state.jicoins < 1) return false;
+    state.jicoins -= 1;
+    state.phase = 'running';
+    state.phaseTime = 0;
+    state.pausedFrom = null;
+    Object.assign(state.player, { y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false });
+    state.powers.grace = Math.max(state.powers.grace, CONFIG.reviveGraceSeconds);
+    state.reminderCue = 0;
+    state.reminderTargetId = null;
+    bufferedJump = null;
+    emit('revive', { x: state.player.x, y: state.player.y });
+    return true;
+  }
+
   function collect(pickup) {
     const { powers, player } = state;
     bufferedJump = null;
-    if (pickup.type === 'star') powers.star = CONFIG.starSeconds;
+    if (pickup.type === 'jicoin') state.jicoins += 1;
+    else if (pickup.type === 'star') powers.star = CONFIG.starSeconds;
     else if (pickup.type === 'bird') {
       powers.bird = CONFIG.birdSeconds;
       coinTimer = 0;
@@ -649,6 +667,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     update,
     pause,
     resume,
+    revive,
     setFlightCeiling(height) {
       if (Number.isFinite(height)) flightCeiling = Math.max(220, Math.min(560, height));
       if (state.player.y > flightCeiling) {

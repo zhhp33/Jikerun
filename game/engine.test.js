@@ -78,6 +78,95 @@ function observeRun(game, seconds) {
   return { obstacles, pickups };
 }
 
+test('jicoins stack, outlast timed powers and never replace an equipped skill', () => {
+  const { game, state } = runningGame();
+  pickup(game, 'football');
+  pickup(game, 'jicoin');
+  pickup(game, 'jicoin');
+  assert.equal(state.jicoins, 2);
+  assert.equal(state.powers.skill, 'football');
+  assert.ok(state.powers.skillTime > 9.9);
+  assert.equal(state.pickups.some(item => item.type === 'jicoin'), false);
+  state.powers.star = 100;
+  game.update(12);
+  assert.equal(state.jicoins, 2);
+  assert.equal(state.powers.skill, null);
+  game.pause();
+  const frozen = structuredClone(state);
+  game.update(5);
+  assert.deepEqual(state, frozen);
+});
+
+test('revival spends exactly one coin and preserves the collision location, world and score', () => {
+  const { game, state, events } = runningGame();
+  advanceToSpeed(game, 450);
+  pickup(game, 'jicoin');
+  pickup(game, 'jicoin');
+  state.bonus = 125;
+  const target = obstacle(state, 'desk-long', state.player.x);
+  const upcoming = obstacle(state, 'stool-2', 650, 9001);
+  state.pickups.push({ id: 8001, type: 'bird', x: 650, y: 310, r: 25 });
+  game.update(CONFIG.step);
+  assert.equal(state.phase, 'falling');
+  const fallen = structuredClone(state);
+  assert.equal(game.revive(), false, 'the fall animation must finish before spending a coin');
+  game.update(CONFIG.fallSeconds);
+  assert.equal(state.phase, 'gameover');
+  const time = state.time;
+  assert.equal(game.revive(), true);
+  assert.equal(state.phase, 'running');
+  assert.equal(state.jicoins, 1);
+  for (const key of ['score', 'distance', 'bonus', 'runTime', 'speed']) assert.equal(state[key], fallen[key], key);
+  assert.equal(state.time, time);
+  assert.equal(state.player.x, fallen.player.x);
+  assert.deepEqual(state.obstacles, fallen.obstacles);
+  assert.deepEqual(state.pickups, fallen.pickups);
+  assert.equal(state.powers.grace, CONFIG.reviveGraceSeconds);
+  assert.equal(game.revive(), false, 'a second click cannot spend a second coin');
+  assert.equal(state.jicoins, 1);
+  game.update(CONFIG.step);
+  assert.equal(state.phase, 'running');
+  assert.equal(state.speed, 450, 'revival must not restart the speed ramp');
+  assert.ok(!state.obstacles.includes(target), 'the overlapping obstacle cannot immediately kill the player again');
+  assert.ok(state.obstacles.includes(upcoming), 'the remaining course is preserved');
+  assert.ok(state.distance > fallen.distance);
+  assert.ok(state.score >= fallen.score);
+  assert.equal(events.filter(event => event.type === 'start').length, 1);
+  assert.equal(events.filter(event => event.type === 'revive').length, 1);
+});
+
+test('coins support repeated deaths until exhausted, and a new run clears the inventory', () => {
+  const { game, state } = runningGame();
+  assert.equal(game.revive(), false);
+  pickup(game, 'jicoin');
+  pickup(game, 'jicoin');
+  for (const remaining of [1, 0]) {
+    clearWorld(state);
+    state.powers.grace = 0;
+    obstacle(state, 'desk-short', state.player.x);
+    game.update(CONFIG.step + CONFIG.fallSeconds);
+    assert.equal(state.phase, 'gameover');
+    const frozen = structuredClone(state);
+    game.update(30);
+    assert.deepEqual(state, frozen, 'waiting for a decision never advances the world or score');
+    assert.equal(game.revive(), true);
+    assert.equal(state.jicoins, remaining);
+  }
+  clearWorld(state);
+  state.powers.grace = 0;
+  obstacle(state, 'desk-short', state.player.x);
+  game.update(CONFIG.step + CONFIG.fallSeconds);
+  assert.equal(game.revive(), false);
+  assert.equal(state.phase, 'gameover');
+  game.start();
+  game.update(CONFIG.launchSeconds);
+  pickup(game, 'jicoin');
+  assert.equal(state.jicoins, 1);
+  game.start();
+  assert.equal(state.jicoins, 0);
+  assert.equal(state.score, 0);
+});
+
 test('launch and failure have distinct animation phases before game over', () => {
   const { game, state, events } = runningGame();
   assert.equal(events[0].type, 'start');
@@ -623,7 +712,7 @@ test('even constant random rolls cannot repeat pickups or place swallow pets con
   }
 });
 
-test('first swallow pet is always guoguo, pets are separated and guoguo remains more common among pets', () => {
+test('all eleven pickups appear, first pet is guoguo and guoguo remains more common among pets', () => {
   const pets = new Set(['guoguo', 'keke', 'otter']);
   const counts = {};
   let total = 0;
@@ -643,7 +732,8 @@ test('first swallow pet is always guoguo, pets are separated and guoguo remains 
       }
     }
   }
-  assert.equal(Object.keys(counts).length, 10);
+  assert.equal(Object.keys(counts).length, 11);
+  assert.ok(counts.jicoin > 0);
   assert.ok(sawNonPetOpening, 'the first overall pickup does not have to be a pet');
   assert.ok(counts.guoguo / total > 0.12 && counts.guoguo / total < 0.18);
   for (const [type, count] of Object.entries(counts)) {
@@ -654,7 +744,7 @@ test('first swallow pet is always guoguo, pets are separated and guoguo remains 
 });
 
 test('restarting clears pickup exclusions and restores the first-guoguo guarantee', () => {
-  const { game } = runningGame(() => 0.59);
+  const { game } = runningGame(() => 0.54);
   const first = observeRun(game, 35).pickups;
   assert.ok(first.length >= 3);
   assert.equal(first[0].type, 'guoguo');

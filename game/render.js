@@ -1,5 +1,5 @@
 import { drawHead, drawBoxHead, drawPet, drawJikeStar, drawStore, drawAppPickup, drawPlasticStool, drawFootball } from './sprites.js?v=20261016-23-narrow-stool';
-import { CONFIG, STOOL_DIMENSIONS } from './engine.js?v=20261016-23-narrow-stool';
+import { CONFIG, STOOL_DIMENSIONS } from './engine.js?v=20261016-26-jicoin';
 import { cityStyle, drawCity } from './city.js?v=20261016-25-eight-cities';
 
 const W = 720;
@@ -307,6 +307,8 @@ export class Renderer {
     this.canvas = canvas; this.ctx = canvas.getContext('2d'); this.images = images;
     this.effects = []; this.elapsed = 0; this.lastState = null; this.hit = 0;
     this.city = 'shanghai';
+    this.images.jicoin = new Image();
+    this.images.jicoin.src = new URL('./assets/jicoin.svg', import.meta.url).href;
     this.height = 0; this.floor = 0; this.syncLayout();
     const random = seeded(26841);
     this.stars = Array.from({ length: 128 }, (_, i) => ({ x: random() * W, y: random(), r: .5 + random() * 1.5, phase: random() * 6.28, cross: i % 15 === 0 }));
@@ -329,6 +331,10 @@ export class Renderer {
     this.syncLayout();
     const FLOOR = this.floor, s = this.lastState, x = event.x ?? s?.player.x ?? 145, y = FLOOR - (event.y ?? 50);
     if (event.type === 'start') { this.effects = []; this.hit = 0; }
+    if (event.type === 'revive') {
+      this.effects = []; this.hit = 0;
+      this.burst(x, FLOOR - 65, 18, C.gold, 'spark');
+    }
     if (event.type === 'jump') {
       this.burst(x - 5, event.double ? y - 8 : FLOOR - 5, event.double ? 14 : 10, event.double ? '#c6dcff' : '#a2c0b6', event.double ? 'spark' : 'dust');
       if (event.double) this.effects.push({ kind: 'ring', x: x + WHEEL_CENTER.x, y: y + WHEEL_CENTER.y, age: 0, life: .4, color: '#b6d9ed' });
@@ -337,9 +343,9 @@ export class Renderer {
     if (event.type === 'flight-lift') this.burst(x, y - 6, 9, '#b9d8dd', 'spark');
     if (event.type === 'flight-land') this.burst(x, FLOOR - 2, 12, '#c4d6c3', 'dust');
     if (event.type === 'pickup') {
-      const colors = { star: C.gold, bird: C.gold, football: C.blue, guoguo: '#f7b55b', keke: '#e9e9d4', otter: '#d4c2ee', high: '#efc06d', double: '#adcce9', flight: '#a6d3d3', reminder: '#cfb7ec' };
+      const colors = { star: C.gold, bird: C.gold, football: C.blue, guoguo: '#f7b55b', keke: '#e9e9d4', otter: '#d4c2ee', high: '#efc06d', double: '#adcce9', flight: '#a6d3d3', reminder: '#cfb7ec', jicoin: C.gold };
       this.burst(x, y, 16, colors[event.pickupType] || C.gold, 'spark');
-      const labels = { star: '无敌开溜！', bird: '开始撒钱！', football: '射门时间！', guoguo: '果果，开饭！', keke: '科科，开饭！', otter: '水獭，开饭！', high: '跳得更高！', double: '再跳一次！', flight: '起飞！', reminder: '跳跃提醒就位！' };
+      const labels = { star: '无敌开溜！', bird: '开始撒钱！', football: '射门时间！', guoguo: '果果，开饭！', keke: '科科，开饭！', otter: '水獭，开饭！', high: '跳得更高！', double: '再跳一次！', flight: '起飞！', reminder: '跳跃提醒就位！', jicoin: '即币 +1！' };
       this.effects.push({ kind: 'label', x, y: y - 30, text: labels[event.pickupType] || '', age: 0, life: 1.4, color: colors[event.pickupType] });
       if (event.pickupType === 'bird') this.burst(x, y, 18, C.gold, 'coin');
     }
@@ -488,6 +494,11 @@ export class Renderer {
     } else if (p.type === 'star') {
       const g = ctx.createRadialGradient(p.x, y, 0, p.x, y, 52); g.addColorStop(0, '#ffd85c44'); g.addColorStop(1, '#ffd85c00'); ctx.fillStyle = g; ctx.fillRect(p.x - 52, y - 52, 104, 104);
       drawJikeStar(ctx, p.x, y, p.r || 25, Math.sin(t * 2) * .13);
+    } else if (p.type === 'jicoin') {
+      const r = p.r || 25;
+      ellipse(ctx, p.x, y, r + 6, r + 6, null, '#e5d7a1', 1.6);
+      const icon = this.images.jicoin;
+      if (icon.complete && icon.naturalWidth) ctx.drawImage(icon, p.x - r, y - r, r * 2, r * 2);
     } else if (p.type === 'bird') {
       goldenBird(ctx, p.x, y, t + (p.age || 0));
     } else drawAppPickup(ctx, p.type, p.x, y, p.r || 25, t);

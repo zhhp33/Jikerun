@@ -276,8 +276,11 @@ function furniture(ctx, obstacle, x, floor) {
   } else if (type === 'desk') {
     const h = height, w = width;
     const legX = w / 2 - 13, drawerW = Math.min(43, w * .35);
+    line(ctx, [[-legX, -h + 12], [-legX, -5]], C.ink, 12);
+    line(ctx, [[legX, -h + 12], [legX, -5]], C.ink, 12);
     line(ctx, [[-legX, -h + 12], [-legX, -5]], '#64858e', 9);
     line(ctx, [[legX, -h + 12], [legX, -5]], '#64858e', 9);
+    line(ctx, [[-legX, -h * .4], [legX, -h * .4]], C.ink, 7);
     line(ctx, [[-legX, -h * .4], [legX, -h * .4]], '#4a6874', 5);
     round(ctx, -w / 2 + 1, -h + 1, w - 2, 16, 4, '#d7b47d', C.ink, 2);
     round(ctx, -w / 2 + 3, -h + 3, w - 6, 4, 2, '#ffe0a0');

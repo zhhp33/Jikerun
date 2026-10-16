@@ -1,5 +1,5 @@
 import { createGame, CONFIG } from './engine.js?v=20261016-26-jicoin';
-import { Renderer } from './render.js?v=20261016-26-jicoin';
+import { Renderer } from './render.js?v=20261017-28-desk-outline';
 import { GameAudio } from './audio.js?v=20261016-17-stool-c';
 import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261016-23-narrow-stool';
 import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.js?v=20261016-25-eight-cities';
@@ -332,19 +332,30 @@ function updatePowers() {
   ui['action-button'].disabled = game.state.cooldown > 0 || game.state.phase !== 'running';
 }
 
+function positionNotices() {
+  if (ui.hud.hidden || (ui['pause-panel'].hidden && ui['revive-panel'].hidden)) return;
+  const compact = window.matchMedia('(orientation: landscape) and (max-height: 480px)').matches;
+  const preferredTop = ui['game-frame'].clientHeight * (compact ? .14 : .15);
+  const top = `${Math.ceil(Math.max(preferredTop, ui.hud.offsetTop + ui.hud.offsetHeight + 12))}px`;
+  if (ui['game-frame'].style.getPropertyValue('--notice-top') !== top) {
+    ui['game-frame'].style.setProperty('--notice-top', top);
+  }
+}
+
 function updateUI() {
   const state = game.state;
   const ready = state.phase === 'ready';
   const finished = state.phase === 'gameover';
+  const canRevive = finished && state.jicoins > 0;
   const paused = state.phase === 'paused';
   if (state.score > best) { best = state.score; }
   if (state.phase !== lastUIPhase) {
     lastUIPhase = state.phase;
     for (const id of ['welcome', 'hero-sticker', 'ready-footer']) ui[id].hidden = !ready;
-    ui.hud.hidden = ready || finished;
+    ui.hud.hidden = ready || (finished && !canRevive);
     ui['pause-panel'].hidden = !paused;
     ui['result-panel'].hidden = !(finished && state.jicoins === 0);
-    ui['revive-panel'].hidden = !(finished && state.jicoins > 0);
+    ui['revive-panel'].hidden = !canRevive;
     ui['revive-count'].textContent = state.jicoins;
     ui['power-strip'].hidden = ready || finished || state.phase === 'falling';
     ui['pause-button'].disabled = ready || finished;
@@ -377,6 +388,7 @@ function updateUI() {
     ui['jump-cue'].style.left = `${Math.min(62, (state.player.x + 100) / CONFIG.width * 100)}%`;
     ui['jump-cue'].style.top = `${Math.max(20, (logicalHeight * .78 - 230) / logicalHeight * 100)}%`;
   }
+  positionNotices();
 }
 
 let lastFrame = performance.now();
@@ -391,6 +403,7 @@ function fitCanvas() {
     ui['game-canvas'].height = height;
   }
   if (width && height) game.setFlightCeiling(height / width * CONFIG.width * .78 - CONFIG.playerHeight - 140);
+  positionNotices();
 }
 new ResizeObserver(fitCanvas).observe(ui['game-frame']);
 fitCanvas();

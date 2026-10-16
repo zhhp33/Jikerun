@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0c1b25" />
+    <meta name="description" content="蹬上台阶，坐着转椅开溜。跳跃、飞行，抱着猫猫和水獭去星空冒险。" />
+    <title>即刻开溜 · Jike Run</title>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg?v=20261016-17-stool-c" />
+    <link rel="stylesheet" href="./style.css?v=20261016-25-eight-cities" />
+    <script type="module" src="./main.js?v=20261016-25-eight-cities"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="site-header">
+        <a class="brand" href="./" aria-label="即刻开溜首页">
+          <img class="brand-mark" src="./assets/logo.svg?v=20261016-17-stool-c" width="40" height="40" alt="开溜转椅" />
+          <span class="brand-name">即刻开溜</span>
+        </a>
+        <div class="header-right">
+          <div class="toolbar">
+            <button id="style-button" class="style-button" type="button" aria-haspopup="dialog" aria-controls="style-panel">沿途风景</button>
+            <button id="sound-button" class="icon-button" type="button" aria-label="关闭声音" title="关闭声音"></button>
+            <button id="pause-button" class="icon-button" type="button" aria-label="暂停游戏" title="暂停 · P" disabled></button>
+          </div>
+        </div>
+      </header>
+
+      <section class="game-section" aria-label="星空转椅跑酷游戏">
+        <div id="game-frame" class="game-frame" tabindex="-1">
+          <canvas id="game-canvas" width="720" height="1280" aria-label="游戏场景：黑衣人物蹬台阶后坐着转椅滑行，躲避塑料圆凳、桌子和便利店。轻点页面或按空格跳跃；点击道具按钮或按上方向键使用足球、猫猫或水獭的能力。"></canvas>
+
+          <div class="game-ui">
+
+            <section id="welcome" class="welcome" aria-labelledby="welcome-title">
+              <h1 id="welcome-title">一把转椅<br /><span>无限可能</span></h1>
+              <button id="start-button" class="primary-button" type="button">开溜 <span aria-hidden="true">↗</span></button>
+            </section>
+
+            <div id="hero-sticker" class="hero-sticker" aria-hidden="true"><span>今日宜</span><strong>开 溜</strong><i>✳</i></div>
+
+            <div id="hud" class="hud" hidden>
+              <div class="score-block"><span class="hud-label">本局得分</span><strong id="score">00000</strong><span id="distance" class="distance">0 m</span></div>
+              <div class="best-block"><span class="hud-label">个人最佳 <span aria-hidden="true">✦</span></span><strong id="best">00000</strong></div>
+            </div>
+
+            <div id="toast" class="game-toast" role="status" aria-live="polite" hidden></div>
+            <div id="power-strip" class="power-strip" aria-label="当前道具效果"></div>
+            <div id="jump-cue" class="jump-cue" role="status" aria-live="assertive" hidden><span aria-hidden="true"></span><strong>跳</strong></div>
+
+            <div id="action-dock" class="action-dock" hidden>
+              <span id="action-key-hint" class="action-key-hint">↑ 使用道具</span>
+              <button id="action-button" class="action-button" type="button" aria-label="使用道具"><span id="action-icon" aria-hidden="true">✦</span><span id="action-label">道具</span></button>
+            </div>
+            <div id="play-hint" class="play-hint" aria-hidden="true" hidden></div>
+
+            <section id="pause-panel" class="pause-panel overlay-panel" aria-labelledby="pause-title" hidden>
+              <span class="panel-symbol" aria-hidden="true">Ⅱ</span>
+              <div class="eyebrow">TAKE A LITTLE BREAK</div>
+              <h2 id="pause-title">星空等你一下。</h2>
+              <p>椅子停好了，准备好再出发。</p>
+              <button id="resume-button" class="primary-button" type="button">继续开溜 <span aria-hidden="true">→</span></button>
+            </section>
+
+            <section id="result-panel" class="result-panel overlay-panel" aria-labelledby="result-title" hidden>
+              <div id="result-eyebrow" class="eyebrow">MISSION: TEMPORARILY FAILED</div>
+              <h2 id="result-title">这班，先上到这。</h2>
+              <p id="result-caption">椅子没事，人也还行。</p>
+              <div class="result-score"><strong id="final-score">0</strong><span>本局得分</span></div>
+              <div class="result-stats"><span>滑行 <b id="final-distance">0 m</b></span><span>最佳 <b id="final-best">0</b></span></div>
+              <button id="restart-button" class="primary-button" type="button">再溜一次 <span aria-hidden="true">↻</span></button>
+            </section>
+
+            <div id="ready-footer" class="ready-footer">CREAT IN SINGAPORE WITH LOVE</div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <dialog id="style-panel" class="style-panel" aria-labelledby="style-title">
+      <div class="style-heading"><div><span class="style-eyebrow">MAKE IT YOUR LITTLE ESCAPE</span><h2 id="style-title">下一站，去哪里？</h2></div><button id="style-close" class="icon-button" type="button" aria-label="关闭沿途风景">×</button></div>
+      <button id="city-auto" class="city-auto" type="button" aria-pressed="true"><span>每局换一座城<small>8 座地标城市</small></span><b aria-hidden="true">↻</b></button>
+      <div class="style-options">
+      <fieldset class="style-fieldset"><legend>城市地标 <span>点选可固定风景</span></legend><div id="city-options" class="city-options"></div></fieldset>
+      </div>
+      <p id="city-selection-note" class="city-selection-note" role="status" aria-live="polite">每次开局换一城。</p>
+      <button id="style-done" class="primary-button style-done" type="button">就这样开溜 <span aria-hidden="true">↗</span></button>
+    </dialog>
+    <noscript>请在浏览器中启用 JavaScript 后开始游戏。</noscript>
+  </body>
+</html>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <title>开溜转椅</title>
+  <path d="M46 12v24M16 35h31" stroke="#173947" stroke-width="7" stroke-linecap="round"/>
+  <rect x="34" y="5" width="19" height="26" rx="6" fill="#79B4C2" stroke="#C0DFDC" stroke-width="2"/>
+  <path d="M39 10v15" stroke="#A3D2D7" stroke-width="2" stroke-linecap="round"/>
+  <rect x="12" y="32" width="35" height="8" rx="4" fill="#90C4CD" stroke="#C0DFDC" stroke-width="1.8"/>
+  <path d="M19 31v-9h9" stroke="#719FAA" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M31 42v9m0 0-15 6m15-6 16 6m-16-6v9m0-9-9-4m9 4 9-4" stroke="#96B7C0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M13 58h6m25 0h6m-22 3h6m-14-13h4m14 0h4" stroke="#C0D8DC" stroke-width="3.7" stroke-linecap="round"/>
+</svg>

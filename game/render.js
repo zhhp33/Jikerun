@@ -541,7 +541,7 @@ export class Renderer {
       ctx.globalAlpha = .35 + Math.sin(t * 4) * .08; ellipse(ctx, p.x, cy - 30, 40, 40, null, p.type === 'guoguo' ? '#eab366' : p.type === 'otter' ? '#c7b2d9' : '#d3dfcc', 1.5); ctx.globalAlpha = 1;
       drawPet(ctx, p.type, p.x, cy, { scale: .85, t });
       sparkle(ctx, p.x + 32, cy - 61, 4, C.gold);
-    } else if (p.type === 'shengchen') {
+    } else if (p.type === 'shengchen' || p.type === 'high') {
       const r = p.r || 25, cy = FLOOR - p.y;
       ellipse(ctx, p.x, FLOOR - 2, r * .9, 3, '#102c2d');
       drawAppPickup(ctx, p.type, p.x, cy, r, t);

@@ -69,7 +69,7 @@ const PICKUP_WEIGHTS = Object.freeze({
   otter: 1, high: 1, double: 1, flight: 1, reminder: 1, jicoin: 1, xiaoyuzhou: 1, shengchen: 1,
 });
 const CAT_TYPES = ['guoguo', 'keke', 'otter'];
-const GROUND_PICKUP_TYPES = [...CAT_TYPES, 'shengchen'];
+const GROUND_PICKUP_TYPES = [...CAT_TYPES, 'shengchen', 'high'];
 const MOVEMENT_TYPES = ['high', 'double', 'flight', 'xiaoyuzhou'];
 const FLIGHT_TYPES = ['flight', 'xiaoyuzhou'];
 
@@ -528,7 +528,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
           }
         }
       }
-      const pickup = { id: ++serial, type, x, y: groundPickup ? (type === 'shengchen' ? 30 : 40) : (roll() > 0.5 ? 285 : 240), r: 25 };
+      const pickup = { id: ++serial, type, x, y: groundPickup ? (CAT_TYPES.includes(type) ? 40 : 30) : (roll() > 0.5 ? 285 : 240), r: 25 };
       if (type === 'star' || type === 'bird' || type === 'xiaoyuzhou') {
         pickup.flightPath = true;
         pickup.vx = -90 - roll() * 50;

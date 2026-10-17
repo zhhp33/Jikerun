@@ -135,7 +135,7 @@ button svg { display: block; width: 19px; height: 19px; }
   letter-spacing: .7px;
 }
 .ready-label > span { width: 4px; height: 4px; border-radius: 50%; background: var(--yellow); }
-.welcome { position: absolute; top: 10%; left: 7%; right: 7%; text-align: center; }
+.welcome { position: absolute; top: 10%; left: 7%; right: 7%; height: 100%; text-align: center; }
 .eyebrow {
   display: flex;
   align-items: center;
@@ -167,12 +167,13 @@ h1 > span { color: var(--yellow); }
   transition: transform .15s, box-shadow .15s, background .15s;
 }
 .primary-button > span { font-size: 23px; font-weight: 500; }
+#start-button { position: absolute; top: 20%; left: 0; right: 0; width: max-content; margin: 0 auto; justify-content: center; }
 .primary-button:hover { background: #ffe66e; }
 .primary-button:active { transform: translateY(3px); box-shadow: 0 1px 0 #c6a62d; }
 .start-hint { margin-top: 15px; color: #8ba5a7; font-size: clamp(9px, 2.45cqw, 11px); line-height: 1.7; letter-spacing: .1px; }
 kbd { display: inline-block; padding: 0 4px; border: 1px solid #4c6265; border-radius: 4px; color: #b1c1bd; background: #203640; font: inherit; font-size: .95em; line-height: 1.45; }
 .hero-sticker { display: none; }
-.ready-footer { position: absolute; bottom: 5%; left: 7%; right: 7%; color: #b1b79e; font-size: clamp(9px, 2.4cqw, 11px); text-align: center; letter-spacing: 1px; }
+.ready-footer { position: absolute; bottom: 3.3%; left: 7%; right: 7%; color: #b1b79e; font-size: clamp(9px, 2.4cqw, 11px); text-align: center; letter-spacing: 1px; }
 
 .hud { position: absolute; top: 4%; left: 6%; right: 6%; display: flex; justify-content: space-between; align-items: start; }
 .hud-label { display: block; margin-bottom: 4px; color: #a9c1c1; font-size: clamp(10px, 2.65cqw, 12px); letter-spacing: 1px; }
@@ -300,12 +301,14 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
 
 @media (min-width: 601px) and (min-height: 481px) {
   .welcome { top: 7%; }
+  #start-button { top: 23%; }
   .welcome p { margin-bottom: 16px; }
   .start-hint { margin-top: 12px; }
 }
 
 @media (max-height: 640px) {
   .welcome { top: 9%; }
+  #start-button { top: 21%; }
   h1 { margin: 9px 0 10px; font-size: clamp(29px, 9.8cqw, 43px); }
   .welcome p { margin-bottom: 15px; line-height: 1.65; }
   .start-hint { margin-top: 12px; }
@@ -334,6 +337,7 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
   .game-frame { border-radius: 12px; }
   .ready-label { top: 3%; font-size: 6px; letter-spacing: .2px; gap: 5px; }
   .welcome { top: 10%; }
+  #start-button { top: 20%; }
   .eyebrow { font-size: 5.5px; letter-spacing: .9px; gap: 5px; }
   .eyebrow > span { width: 10px; }
   h1 { margin: 6px 0 7px; font-size: 10.5cqw; line-height: 1.08; letter-spacing: .5px; }
@@ -341,7 +345,7 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
   .primary-button { min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 4.6cqw; gap: 16px; box-shadow: 0 3px 0 #c6a62d; }
   .primary-button > span { font-size: 16px; }
   .start-hint { margin-top: 8px; font-size: 3.1cqw; line-height: 1.5; letter-spacing: 0; }
-  .ready-footer { bottom: 5%; font-size: 6px; letter-spacing: .5px; }
+  .ready-footer { bottom: 3.3%; font-size: 6px; letter-spacing: .5px; }
   .hud { top: 5%; }
   .hud-label { margin-bottom: 3px; font-size: 6px; letter-spacing: .2px; }
   .score-block > strong { font-size: 8cqw; letter-spacing: 1px; }
@@ -381,6 +385,7 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
 @media (orientation: portrait) and (max-height: 520px) {
   .ready-label { top: 3%; font-size: 8px; }
   .welcome { top: 9%; }
+  #start-button { top: 21%; }
   .welcome .eyebrow { font-size: 7px; letter-spacing: 1px; }
   .welcome h1 { margin: 8px 0 13px; font-size: clamp(25px, 9.4cqw, 33px); line-height: 1.13; }
   .welcome p { display: none; }
@@ -393,7 +398,7 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
   .result-score strong { font-size: 38px; }
   .result-stats { margin: 7px 0 12px; font-size: 10px; }
   .result-panel .primary-button { min-height: 44px; }
-  .ready-footer { bottom: 5%; font-size: 8px; }
+  .ready-footer { bottom: 3.3%; font-size: 8px; }
 }
 
 @media (min-height: 641px) {

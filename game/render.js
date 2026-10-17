@@ -1,5 +1,5 @@
-import { drawHead, drawBoxHead, drawPet, drawJikeStar, drawStore, drawAppPickup, drawPlasticStool, drawFootball } from './sprites.js?v=20261016-23-narrow-stool';
-import { CONFIG, STOOL_DIMENSIONS } from './engine.js?v=20261016-26-jicoin';
+import { drawHead, drawBoxHead, drawPet, drawJikeStar, drawStore, drawAppPickup, drawPlasticStool, drawFootball, drawXiaoyuzhou } from './sprites.js?v=20261017-35-shengchen';
+import { CONFIG, STOOL_DIMENSIONS } from './engine.js?v=20261017-37-shengchen-3s';
 import { cityStyle, drawCity } from './city.js?v=20261016-25-eight-cities';
 
 const W = 720;
@@ -126,12 +126,14 @@ function officeChair(ctx, tilt = 0, wheel = 0, fill = '#779fac') {
   ctx.restore();
 }
 
-function rider(ctx, t, pose = 'ride', progress = 0) {
+function rider(ctx, t, pose = 'ride', holdingPet = false) {
   const jump = pose === 'jump';
   ctx.save();
   // Rear arm and legs before the torso.
-  limb(ctx, [[12, -107], [-16, -80], [-44, -84]], 10, '#30353b');
-  ellipse(ctx, -45, -84, 7, 6, '#efbd96', C.ink, 2);
+  if (!holdingPet) {
+    limb(ctx, [[12, -107], [-16, -80], [-44, -84]], 10, '#30353b');
+    ellipse(ctx, -45, -84, 7, 6, '#efbd96', C.ink, 2);
+  }
   leg(ctx, [12, -64], ridingFoot(12, t, jump), 1, '#303940', ridingShoeAngle(t));
   leg(ctx, [2, -64], ridingFoot(2, t, jump, true), 1, '#192229', ridingShoeAngle(t, true));
   ellipse(ctx, 10, -65, 22, 9, '#1b232b');
@@ -141,6 +143,7 @@ function rider(ctx, t, pose = 'ride', progress = 0) {
   ctx.fillStyle = '#1b232b'; ctx.fill(); ctx.strokeStyle = C.ink; ctx.lineWidth = 3; ctx.stroke();
   line(ctx, [[16, -99], [23, -73]], '#4a5259', 2); line(ctx, [[-10, -72], [14, -69]], '#46515a', 2);
   star(ctx, -2, -94, 5, '#b9c7bc', .1);
+  // Keep the lower hand against the pet; the companion layer adds the near support.
   limb(ctx, [[0, -105], [-19, -80], [-41, -75]], 12, '#222b33');
   ellipse(ctx, -43, -75, 8, 6, '#f5c5a0', C.ink, 2.5);
   line(ctx, [[-49, -75], [-43, -74]], '#c7906d', 1.5);
@@ -254,14 +257,44 @@ function slidingRider(ctx, t, seconds) {
   ctx.restore();
 }
 
-function flightRider(ctx, t, vy = 0, landing = false) {
+function flightRider(ctx, t, vy = 0, landing = false, holdingPet = false) {
   const sway = Math.sin(t * 4) * 4;
   limb(ctx, [[12, -64], [19, -36], [10 + sway, -9]], 14, '#303940'); shoe(ctx, 8 + sway, -8, .12);
   limb(ctx, [[-2, -64], [-13, -36], [-20 - sway * .5, -12]], 15, '#192229'); shoe(ctx, -24 - sway * .5, -11, -.08);
   hoodie(ctx);
-  limb(ctx, [[-9, -102], [-32, -84], [-47, -88]], 11); ellipse(ctx, -49, -88, 7, 6, '#f5c5a0', C.ink, 2);
+  if (!holdingPet) {
+    limb(ctx, [[-9, -102], [-32, -84], [-47, -88]], 11); ellipse(ctx, -49, -88, 7, 6, '#f5c5a0', C.ink, 2);
+  }
   limb(ctx, [[22, -102], [40, -83], [48, -93]], 11); ellipse(ctx, 49, -95, 7, 6, '#f5c5a0', C.ink, 2);
   drawBoxHead(ctx, -1, -137, clamp(-vy * .00006, -.05, .05) + (landing ? .02 : 0));
+}
+
+const HELD_PLANET = { y: -199, r: 31, tilt: -.28 };
+function xiaoyuzhouRider(ctx, t, holding) {
+  const sway = Math.sin(t * 3.5) * 5;
+  limb(ctx, [[12, -64], [25, -37], [16 + sway, -9]], 14, '#303940'); shoe(ctx, 15 + sway, -8, .12);
+  limb(ctx, [[-2, -64], [-17, -37], [-24 - sway * .6, -12]], 15, '#192229'); shoe(ctx, -27 - sway * .6, -11, -.1);
+  hoodie(ctx);
+  if (holding) {
+    const reach = 35 * HELD_PLANET.r / 25;
+    const dx = Math.cos(HELD_PLANET.tilt) * reach, dy = Math.sin(HELD_PLANET.tilt) * reach;
+    const left = [-dx, HELD_PLANET.y - dy], right = [dx, HELD_PLANET.y + dy];
+    // Open the elbows around the head while keeping both hands on the orbit.
+    limb(ctx, [[-14, -105], [-48, -145], left], 11);
+    limb(ctx, [[24, -105], [49, -155], right], 11, '#303940');
+    drawXiaoyuzhou(ctx, 0, HELD_PLANET.y, HELD_PLANET.r, HELD_PLANET.tilt);
+    for (const [hx, hy] of [left, right]) {
+      ellipse(ctx, hx, hy, 6.7, 7, '#f5c5a0', C.ink, 2);
+      line(ctx, [[hx - 3, hy - 1], [hx + 3, hy - 2]], '#bd8a6c', 1.2);
+    }
+  } else {
+    limb(ctx, [[-9, -105], [-35, -116], [-48, -139]], 11);
+    limb(ctx, [[22, -105], [44, -118], [51, -144]], 11, '#303940');
+    ellipse(ctx, -48, -141, 7, 6, '#f5c5a0', C.ink, 2);
+    ellipse(ctx, 51, -146, 7, 6, '#f5c5a0', C.ink, 2);
+  }
+  // Keep the face in front of both sleeves throughout the flight and release.
+  drawHead(ctx, -2, -137, { rotation: -.02 + Math.sin(t * 2) * .025 });
 }
 
 function furniture(ctx, obstacle, x, floor) {
@@ -345,10 +378,14 @@ export class Renderer {
     if (event.type === 'land') this.burst(x, FLOOR - 1, 12, '#aec8bb', 'dust');
     if (event.type === 'flight-lift') this.burst(x, y - 6, 9, '#b9d8dd', 'spark');
     if (event.type === 'flight-land') this.burst(x, FLOOR - 2, 12, '#c4d6c3', 'dust');
+    if (event.type === 'xiaoyuzhou-depart') {
+      const tilt = playerTilt({ y: event.y, vy: event.vy }, this.elapsed, 'running');
+      this.effects.push({ kind: 'planet-depart', x: x - HELD_PLANET.y * Math.sin(tilt), y: y + HELD_PLANET.y * Math.cos(tilt), age: 0, life: 1.7, tilt: HELD_PLANET.tilt + tilt });
+    }
     if (event.type === 'pickup') {
-      const colors = { star: C.gold, bird: C.gold, football: C.blue, guoguo: '#f7b55b', keke: '#e9e9d4', otter: '#d4c2ee', high: '#efc06d', double: '#adcce9', flight: '#a6d3d3', reminder: '#cfb7ec', jicoin: C.gold };
+      const colors = { star: C.gold, bird: C.gold, football: C.blue, guoguo: '#f7b55b', keke: '#e9e9d4', otter: '#d4c2ee', high: '#efc06d', double: '#adcce9', flight: '#a6d3d3', xiaoyuzhou: '#86e1e3', reminder: C.gold, jicoin: C.gold, shengchen: '#e5e8e4' };
       this.burst(x, y, 16, colors[event.pickupType] || C.gold, 'spark');
-      const labels = { star: '无敌开溜！', bird: '开始撒钱！', football: '射门时间！', guoguo: '果果，开饭！', keke: '科科，开饭！', otter: '水獭，开饭！', high: '跳得更高！', double: '再跳一次！', flight: '起飞！', reminder: '跳跃提醒就位！', jicoin: '即币 +1！' };
+      const labels = { star: '无敌开溜！', bird: '开始发钱！', football: '射门时间！', guoguo: '果果，开饭！', keke: '科科，开饭！', otter: '水獭，开饭！', high: '跳得更高！', double: '再跳一次！', flight: '起飞！', xiaoyuzhou: '小宇宙带你飞！', reminder: '跳跃提醒', jicoin: '即币 +1', shengchen: '生辰' };
       this.effects.push({ kind: 'label', x, y: y - 30, text: labels[event.pickupType] || '', age: 0, life: 1.4, color: colors[event.pickupType] });
       if (event.pickupType === 'bird') this.burst(x, y, 18, C.gold, 'coin');
     }
@@ -389,6 +426,7 @@ export class Renderer {
     this.syncLayout();
     this.lastState = state;
     const paused = state.phase === 'paused';
+    dt *= state.timeScale ?? 1;
     if (!paused) { this.elapsed += Math.min(dt, .05); this.hit = Math.max(0, this.hit - dt); this.updateEffects(dt); }
     const ctx = this.ctx, t = this.elapsed, H = this.height, FLOOR = this.floor, phase = paused ? state.pausedFrom || 'running' : state.phase;
     const scale = this.canvas.width / W;
@@ -398,6 +436,15 @@ export class Renderer {
     this.background(state, t, phase);
     for (const p of state.pickups || []) this.pickup(p, t);
     for (const o of state.obstacles || []) furniture(ctx, o, o.x, FLOOR);
+    if (state.shengchenTargetId !== null) {
+      const target = state.obstacles?.find(o => o.id === state.shengchenTargetId);
+      if (target) {
+        ctx.save(); ctx.setLineDash([5, 7]);
+        round(ctx, target.x - target.width / 2 - 5, FLOOR - target.height - 6, target.width + 10, target.height + 10, 8, null, '#dce5e1', 1.5);
+        ctx.restore();
+        drawAppPickup(ctx, 'shengchen', target.x, FLOOR - target.height - 28, 18, t);
+      }
+    }
     if (state.reminderCue > 0) {
       const target = state.obstacles?.find(o => o.id === state.reminderTargetId);
       if (target) {
@@ -475,7 +522,7 @@ export class Renderer {
 
   pickup(p, t) {
     const ctx = this.ctx, FLOOR = this.floor;
-    const isFlyby = p.type === 'star' || p.type === 'bird';
+    const isFlyby = p.type === 'star' || p.type === 'bird' || p.type === 'xiaoyuzhou';
     const y = FLOOR - p.y + (isFlyby ? 0 : Math.sin(t * 3 + (typeof p.id === 'number' ? p.id : 0)) * 2);
     const isPet = ['guoguo', 'keke', 'otter'].includes(p.type);
     ctx.save();
@@ -484,7 +531,7 @@ export class Renderer {
       for (let i = 1; i <= 4; i++) {
         ctx.globalAlpha = .3 * (1 - i / 5);
         const tx = p.x - (p.vx || -1) / speed * i * 12, ty = y + (p.vy || .3) / speed * i * 12;
-        sparkle(ctx, tx, ty, 5 - i * .7, '#ffdd86');
+        sparkle(ctx, tx, ty, 5 - i * .7, p.type === 'xiaoyuzhou' ? '#9be5e4' : '#ffdd86');
       }
       ctx.globalAlpha = 1;
     }
@@ -494,9 +541,18 @@ export class Renderer {
       ctx.globalAlpha = .35 + Math.sin(t * 4) * .08; ellipse(ctx, p.x, cy - 30, 40, 40, null, p.type === 'guoguo' ? '#eab366' : p.type === 'otter' ? '#c7b2d9' : '#d3dfcc', 1.5); ctx.globalAlpha = 1;
       drawPet(ctx, p.type, p.x, cy, { scale: .85, t });
       sparkle(ctx, p.x + 32, cy - 61, 4, C.gold);
+    } else if (p.type === 'shengchen') {
+      const r = p.r || 25, cy = FLOOR - p.y;
+      ellipse(ctx, p.x, FLOOR - 2, r * .9, 3, '#102c2d');
+      drawAppPickup(ctx, p.type, p.x, cy, r, t);
     } else if (p.type === 'star') {
       const g = ctx.createRadialGradient(p.x, y, 0, p.x, y, 52); g.addColorStop(0, '#ffd85c44'); g.addColorStop(1, '#ffd85c00'); ctx.fillStyle = g; ctx.fillRect(p.x - 52, y - 52, 104, 104);
       drawJikeStar(ctx, p.x, y, p.r || 25, Math.sin(t * 2) * .13);
+    } else if (p.type === 'xiaoyuzhou') {
+      const glow = ctx.createRadialGradient(p.x, y, 8, p.x, y, 48);
+      glow.addColorStop(0, '#53d8e52e'); glow.addColorStop(1, '#53d8e500');
+      ctx.fillStyle = glow; ctx.fillRect(p.x - 48, y - 48, 96, 96);
+      drawAppPickup(ctx, p.type, p.x, y, p.r || 25, t);
     } else if (p.type === 'jicoin') {
       const r = p.r || 25;
       ellipse(ctx, p.x, y, r + 6, r + 6, null, '#e5d7a1', 1.6);
@@ -576,13 +632,15 @@ export class Renderer {
     }
     const x = phase === 'launch' ? launchPosition(state.phaseTime, p.x) : p.x;
     const y = FLOOR - p.y;
+    const holdingPet = Boolean(this.activeCompanion(state).type);
     ctx.save(); ctx.globalAlpha = .3 * (1 - Math.min(p.y / 400, .6)); ellipse(ctx, x + 5, FLOOR + 3, 65 - p.y * .07, 7, '#0b2528'); ctx.restore();
     ctx.save(); ctx.translate(x, y); ctx.rotate(playerTilt(p, t, phase));
-    if (p.flying || state.powers?.movement === 'flight') flightRider(ctx, t, p.vy, p.landing);
+    if (p.flying && p.flightStyle === 'xiaoyuzhou') xiaoyuzhouRider(ctx, t, state.powers?.movement === 'xiaoyuzhou' && !p.landing);
+    else if (p.flying || state.powers?.movement === 'flight') flightRider(ctx, t, p.vy, p.landing, holdingPet);
     else {
       officeChair(ctx, 0, (state.distance || 0) / 10);
       if (phase === 'launch') launchRider(ctx, t, state.phaseTime, x);
-      else rider(ctx, t, p.y > 0 ? 'jump' : 'ride');
+      else rider(ctx, t, p.y > 0 ? 'jump' : 'ride', holdingPet);
     }
     ctx.restore();
   }
@@ -602,21 +660,27 @@ export class Renderer {
     return { x: (phase === 'launch' ? launchPosition(state.phaseTime, p.x) : p.x) - 14, y: this.floor - p.y - 55 };
   }
 
-  companion(state, t, phase) {
-    if (phase === 'ready') return;
-    const ctx = this.ctx, powers = state.powers || {};
+  activeCompanion(state) {
     // The newest suction owns the visible companion until its animation finishes,
     // even when the gameplay power expires or another pickup replaces it.
     const absorbing = [...this.effects].reverse().find(f => f.kind === 'absorb');
-    const skillCat = ['guoguo', 'keke', 'otter'].includes(powers.skill) ? powers.skill : null;
-    const type = absorbing?.cat || skillCat;
+    const skill = state.powers?.skill;
+    const skillCat = ['guoguo', 'keke', 'otter'].includes(skill) ? skill : null;
+    return { absorbing, type: absorbing?.cat || skillCat };
+  }
+
+  companion(state, t, phase) {
+    if (phase === 'ready') return;
+    const ctx = this.ctx, powers = state.powers || {};
+    const { absorbing, type } = this.activeCompanion(state);
     if (!type) return;
     const { x, y } = this.petAnchor(state, phase);
     for (const effect of this.effects) if (effect.kind === 'absorb') {
       effect.targetX = x + 12 * .66; effect.targetY = y - 28 * .66;
     }
     drawPet(ctx, type, x, y, { scale: .66, t, eating: Boolean(absorbing) });
-    if (phase === 'running' || phase === 'launch') {
+    const holdingPlanet = state.player.flying && state.player.flightStyle === 'xiaoyuzhou';
+    if ((phase === 'running' || phase === 'launch') && !holdingPlanet) {
       // A sleeve under the pet's chest makes the companion visibly held in the lap.
       limb(ctx, [[x + 27, y - 20], [x + 14, y - 7], [x - 6, y - 8]], 9, '#222b33');
       ellipse(ctx, x - 7, y - 8, 6, 4.5, '#f5c5a0', C.ink, 1.8);
@@ -664,6 +728,14 @@ export class Renderer {
       }
       if (f.kind === 'label') {
         ctx.globalAlpha = Math.min(1, (1 - p) * 3); ctx.font = '700 20px "PingFang SC", sans-serif'; ctx.textAlign = 'center'; ctx.lineWidth = 5; ctx.strokeStyle = '#122b33'; ctx.strokeText(f.text, f.x, f.y - ease(p) * 27); ctx.fillStyle = f.color || C.gold; ctx.fillText(f.text, f.x, f.y - ease(p) * 27);
+      } else if (f.kind === 'planet-depart') {
+        const dx = 170 * f.age + 190 * f.age ** 2, dy = -65 * f.age - 115 * f.age ** 2;
+        for (let i = 1; i <= 4; i++) {
+          ctx.globalAlpha = (1 - p) * .18 * (1 - i / 5);
+          sparkle(ctx, f.x + dx - i * 15, f.y + dy + i * 9, 4 - i * .5, '#9be5e4');
+        }
+        ctx.globalAlpha = Math.min(1, (1 - p) * 3);
+        drawXiaoyuzhou(ctx, f.x + dx, f.y + dy, HELD_PLANET.r * (1 - p * .3), f.tilt + p * .28);
       } else if (f.kind === 'ring') ellipse(ctx, f.x, f.y, 10 + p * 48, 10 + p * 48, null, f.color, 3 * (1 - p));
       else if (f.kind === 'coin') this.coin(f.x, f.y, f.r + 4, f.rotation);
       else if (f.kind === 'dust') ellipse(ctx, f.x, f.y, f.r * (1 + p), f.r * .6, f.color);

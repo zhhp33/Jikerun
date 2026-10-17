@@ -1,7 +1,7 @@
-import { createGame, CONFIG } from './engine.js?v=20261016-26-jicoin';
-import { Renderer } from './render.js?v=20261017-28-desk-outline';
+import { createGame, CONFIG } from './engine.js?v=20261017-37-shengchen-3s';
+import { Renderer } from './render.js?v=20261017-39-pickup-copy';
 import { GameAudio } from './audio.js?v=20261016-17-stool-c';
-import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261016-23-narrow-stool';
+import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261017-35-shengchen';
 import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.js?v=20261016-25-eight-cities';
 
 const $ = (id) => document.getElementById(id);
@@ -10,7 +10,7 @@ const ui = Object.fromEntries([
   'hud', 'score', 'distance', 'best', 'toast', 'power-strip', 'jump-cue', 'action-dock', 'action-button',
   'action-icon', 'action-label', 'action-key-hint', 'play-hint', 'pause-panel', 'result-panel', 'final-score',
   'final-distance', 'final-best', 'result-eyebrow', 'result-caption', 'sound-button', 'pause-button',
-  'coin-badge', 'coin-count', 'revive-panel', 'revive-count',
+  'coin-badge', 'coin-count', 'revive-panel', 'revive-count', 'shengchen-cue',
 ].map((id) => [id, $(id)]));
 
 function readStorage(key, fallback) {
@@ -92,17 +92,19 @@ function pickupMessage(type) {
   const jump = touchControls ? '轻点屏幕' : '按空格';
   const skill = touchControls ? '点右下角按钮' : '按 ↑ 或点技能按钮';
   return {
-  star: '✦ 星星护体！这下谁也拦不住。',
-  bird: '快鸟返利！每秒额外 +50 分。',
-  football: `指尖足球！${skill}射门。`,
-  guoguo: `果果饿了！${skill}吞障碍。`,
-  keke: `科科饿了！${skill}吞障碍。`,
-  otter: `水獭饿了！${skill}吞障碍。`,
-  high: `跳得更高！${jump}起跳。`,
-  double: `跳得更远！空中再${touchControls ? '点一次' : '按一次空格'}，二段跳。`,
-  flight: `飞起来了！${jump}向上飞，停下来慢慢下降。`,
-  reminder: '跳跃提醒！看到圆圈就起跳。',
-  jicoin: '即币 +1！摔倒后可消耗一枚，原地复活。',
+  star: '✦ 星星护体，这下谁也拦不住',
+  shengchen: '生辰为你续一秒，危急时自动慢放',
+  bird: '快鸟返利，每秒额外 +50 分',
+  football: `指尖足球！${skill}射门`,
+  guoguo: `果果饿了！${skill}吞障碍`,
+  keke: `科科饿了！${skill}吞障碍`,
+  otter: 'Otterlife帮你解压',
+  high: `跳得更高！${jump}起跳`,
+  double: '二段跳，现在可以连跳两次',
+  flight: `小组件盒子带你飞，${jump}向上飞`,
+  xiaoyuzhou: `小宇宙带你飞，${jump}向上飞`,
+  reminder: 'Kuli Kuli 为你翻译，看到圆圈就起跳',
+  jicoin: '摔倒后可原地复活',
   }[type];
 }
 
@@ -144,6 +146,11 @@ const game = createGame({ onEvent(event) {
   } else if (event.type === 'pause') {
     audio.stop();
   } else if (event.type === 'jump-cue') {
+    audio.play('cue');
+  } else if (event.type === 'shengchen-start') {
+    playHintTime = 0;
+    toastTime = 0;
+    ui.toast.hidden = true;
     audio.play('cue');
   } else if (event.type === 'flight-lift') {
     audio.play('jump');
@@ -293,22 +300,24 @@ window.addEventListener('resize', () => {
 function updatePowers() {
   const p = game.state.powers;
   const powers = [];
-  if (p.star > 0) powers.push({ id: 'star', icon: '★', label: '星星护体', time: p.star, max: 6 });
-  if (p.bird > 0) powers.push({ id: 'bird', image: './assets/kuainiaofanli.webp', label: '快鸟返利', time: p.bird, max: 8 });
+  if (p.shengchen > 0 || game.state.shengchenTargetId !== null) powers.push({ id: 'shengchen', image: './assets/shengchen.webp', label: '生辰·续一秒', time: p.shengchen, max: CONFIG.shengchenCharges, counted: true });
+  if (p.star > 0) powers.push({ id: 'star', image: './assets/Jellow.svg', label: 'Jellow·星星护体', time: p.star, max: 6 });
+  if (p.bird > 0) powers.push({ id: 'bird', image: './assets/kuainiaofanli.webp', label: '快鸟返利·有钱花', time: p.bird, max: 8 });
   if (p.skill && p.skillTime > 0) {
-    const labels = { football: '指尖足球', guoguo: '果果饿了', keke: '科科饿了', otter: '水獭饿了' };
+    const labels = { football: '指尖足球', guoguo: '果果·消除障碍', keke: '科科·消除障碍', otter: 'Otterlife·消除压力' };
     powers.push({ id: p.skill, art: p.skill, image: p.skill === 'otter' ? './assets/otterlife.webp' : null, label: labels[p.skill], time: p.skillTime, max: 10 });
   }
   if (p.movement && p.movementTime > 0) {
-    const labels = { high: '跳得更高', double: '跳得更远', flight: '飞起来了' };
-    powers.push({ id: p.movement, art: p.movement, label: labels[p.movement], time: p.movementTime, max: 10 });
+    const labels = { high: '一罐·增高剂', double: '橙·好事成双', flight: '小组件盒子·起飞', xiaoyuzhou: '小宇宙·起飞' };
+    const images = { high: './assets/yiguan.webp', double: './assets/cheng.webp', xiaoyuzhou: './assets/xiaoyuzhou.webp' };
+    powers.push({ id: p.movement, art: p.movement, image: images[p.movement] || null, label: labels[p.movement], time: p.movementTime, max: CONFIG.movementSeconds });
   }
-  if (p.reminders > 0) powers.push({ id: 'reminder', art: 'reminder', label: '跳跃提醒', time: p.reminders, max: CONFIG.reminderCharges, counted: true });
+  if (p.reminders > 0) powers.push({ id: 'reminder', art: 'reminder', label: 'Kuli Kuli·跳跃提醒', time: p.reminders, max: CONFIG.reminderCharges, counted: true });
   if (p.grace > 0 && !p.star) powers.push({ id: 'grace', icon: '✦', label: '缓冲保护', time: p.grace, max: 1 });
   const key = powers.map((power) => power.id).join('|');
   if (key !== activePowerKey) {
     activePowerKey = key;
-    ui['power-strip'].innerHTML = powers.map((power) => `<div class="power-chip ${power.id === 'grace' ? 'grace' : ''}" data-power="${power.id}">${power.image ? `<img class="power-image${power.id === 'bird' ? ' power-bird' : ''}" src="${power.image}" alt="" aria-hidden="true" />` : power.art ? '<canvas class="power-image" width="40" height="40" aria-hidden="true"></canvas>' : `<span class="power-emoji" aria-hidden="true">${power.icon}</span>`}<span class="power-name">${power.label}</span><span class="power-time"></span><span class="power-progress"></span></div>`).join('');
+    ui['power-strip'].innerHTML = powers.map((power) => `<div class="power-chip ${power.id === 'grace' ? 'grace' : ''}" data-power="${power.id}">${power.image ? `<img class="power-image${power.id === 'bird' ? ' power-bird' : ''}" src="${power.image}" alt="" aria-hidden="true" />` : power.art ? '<canvas class="power-image" width="40" height="40" aria-hidden="true"></canvas>' : `<span class="power-emoji" aria-hidden="true">${power.icon}</span>`}<span class="power-name">${power.label.includes('·') ? power.label.split('·').map(part => `<span class="power-label-part">${part}</span>`).join('·<wbr>') : power.label}</span><span class="power-time"></span><span class="power-progress"></span></div>`).join('');
     for (const power of powers.filter((item) => item.art && !item.image)) {
       const icon = ui['power-strip'].querySelector(`[data-power="${power.id}"] canvas`);
       const ctx = icon.getContext('2d');
@@ -318,6 +327,7 @@ function updatePowers() {
   }
   for (const power of powers) {
     const el = ui['power-strip'].querySelector(`[data-power="${power.id}"]`);
+    el.classList.toggle('slowing', power.id === 'shengchen' && game.state.shengchenTargetId !== null);
     el.classList.toggle('expiring', !power.counted && power.time < 2 && power.id !== 'grace');
     el.querySelector('.power-time').textContent = `${Math.ceil(power.time)}${power.counted ? '次' : 's'}`;
     el.querySelector('.power-progress').style.transform = `scaleX(${Math.min(1, power.time / power.max)})`;
@@ -370,7 +380,7 @@ function updateUI() {
       ui['final-best'].textContent = best;
       const record = state.score > previousBest && state.score > 0;
       ui['result-eyebrow'].textContent = record ? 'A LITTLE FALL. A NEW RECORD.' : 'MISSION: TEMPORARILY FAILED';
-      ui['result-caption'].textContent = record ? '虽然摔了，但创造了新纪录！' : '椅子没事，人也还行。';
+      ui['result-caption'].textContent = record ? '虽然摔了，但创造了新纪录！' : '椅子没事，人也还行';
       writeStorage('jike-run-best', best);
     }
   }
@@ -383,6 +393,8 @@ function updateUI() {
   updatePowers();
   ui['play-hint'].hidden = !(state.phase === 'running' && playHintTime > 0);
   ui['jump-cue'].hidden = !(state.phase === 'running' && state.reminderCue > 0);
+  ui['shengchen-cue'].hidden = !(state.phase === 'running' && state.shengchenTargetId !== null);
+  if (!ui['shengchen-cue'].hidden) ui['shengchen-cue'].textContent = '时间慢放';
   if (!ui['jump-cue'].hidden) {
     const logicalHeight = ui['game-canvas'].height / ui['game-canvas'].width * CONFIG.width;
     ui['jump-cue'].style.left = `${Math.min(62, (state.player.x + 100) / CONFIG.width * 100)}%`;
@@ -402,7 +414,10 @@ function fitCanvas() {
     ui['game-canvas'].width = width;
     ui['game-canvas'].height = height;
   }
-  if (width && height) game.setFlightCeiling(height / width * CONFIG.width * .78 - CONFIG.playerHeight - 140);
+  if (width && height) {
+    const floor = height / width * CONFIG.width * .78;
+    game.setFlightCeiling(floor - CONFIG.playerHeight - 140, floor - 270);
+  }
   positionNotices();
 }
 new ResizeObserver(fitCanvas).observe(ui['game-frame']);

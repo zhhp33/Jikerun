@@ -7,8 +7,8 @@
     <meta name="description" content="蹬上台阶，坐着转椅开溜。跳跃、飞行，抱着猫猫和水獭去星空冒险。" />
     <title>即刻开溜 · Jike Run</title>
     <link rel="icon" type="image/svg+xml" href="./assets/logo.svg?v=20261016-17-stool-c" />
-    <link rel="stylesheet" href="./style.css?v=20261017-27-notice-layout" />
-    <script type="module" src="./main.js?v=20261017-28-desk-outline"></script>
+    <link rel="stylesheet" href="./style.css?v=20261017-39-pickup-copy" />
+    <script type="module" src="./main.js?v=20261017-39-pickup-copy"></script>
   </head>
   <body>
     <main class="app-shell">
@@ -47,6 +47,7 @@
             <div id="toast" class="game-toast" role="status" aria-live="polite" hidden></div>
             <div id="power-strip" class="power-strip" aria-label="当前道具效果"></div>
             <div id="jump-cue" class="jump-cue" role="status" aria-live="assertive" hidden><span aria-hidden="true"></span><strong>跳</strong></div>
+            <div id="shengchen-cue" class="shengchen-cue" role="status" aria-live="polite" hidden></div>
 
             <div id="action-dock" class="action-dock" hidden>
               <span id="action-key-hint" class="action-key-hint">↑ 使用道具</span>
@@ -57,15 +58,15 @@
             <section id="pause-panel" class="pause-panel overlay-panel" aria-labelledby="pause-title" hidden>
               <span class="panel-symbol" aria-hidden="true">Ⅱ</span>
               <div class="eyebrow">TAKE A LITTLE BREAK</div>
-              <h2 id="pause-title">星空等你一下。</h2>
-              <p>椅子停好了，准备好再出发。</p>
-              <button id="resume-button" class="primary-button" type="button">再试一把 <span aria-hidden="true">→</span></button>
+              <h2 id="pause-title">椅子已停好</h2>
+              <p>准备好再出发</p>
+              <button id="resume-button" class="primary-button" type="button">继续 <span aria-hidden="true">→</span></button>
             </section>
 
             <section id="result-panel" class="result-panel overlay-panel" aria-labelledby="result-title" hidden>
               <div id="result-eyebrow" class="eyebrow">MISSION: TEMPORARILY FAILED</div>
-              <h2 id="result-title">这班，先上到这。</h2>
-              <p id="result-caption">椅子没事，人也还行。</p>
+              <h2 id="result-title">这班，先上到这</h2>
+              <p id="result-caption">椅子没事，人也还行</p>
               <div class="result-score"><strong id="final-score">0</strong><span>本局得分</span></div>
               <div class="result-stats"><span>滑行 <b id="final-distance">0 m</b></span><span>最佳 <b id="final-best">0</b></span></div>
               <button id="restart-button" class="primary-button" type="button">再试一把 <span aria-hidden="true">↻</span></button>

@@ -11,6 +11,11 @@ export const CONFIG = Object.freeze({
   minJumpWindow: 0.10,
   reminderLead: 0.25,
   reminderCharges: 6,
+  shengchenCharges: 3,
+  shengchenLead: 0.18,
+  // 0.18 / 0.06 leaves about three real seconds before contact.
+  shengchenWaitScale: 0.06,
+  shengchenJumpScale: 0.35,
   startSpeed: 300,
   kickoffSpeed: 120,
   accelerationSeconds: 3,
@@ -27,6 +32,7 @@ export const CONFIG = Object.freeze({
   flightLift: 430,
   flightGravity: 430,
   flightFallSpeed: 220,
+  xiaoyuzhouHeight: 660,
   landingFallSpeed: 170,
   graceSeconds: 1,
   reviveGraceSeconds: 1,
@@ -60,10 +66,12 @@ export const OBSTACLE_VARIANTS = Object.freeze([
 const EPSILON = 1e-8;
 const PICKUP_WEIGHTS = Object.freeze({
   star: 1, bird: 1, football: 1, guoguo: 2, keke: 1,
-  otter: 1, high: 1, double: 1, flight: 1, reminder: 1, jicoin: 1,
+  otter: 1, high: 1, double: 1, flight: 1, reminder: 1, jicoin: 1, xiaoyuzhou: 1, shengchen: 1,
 });
 const CAT_TYPES = ['guoguo', 'keke', 'otter'];
-const MOVEMENT_TYPES = ['high', 'double', 'flight'];
+const GROUND_PICKUP_TYPES = [...CAT_TYPES, 'shengchen'];
+const MOVEMENT_TYPES = ['high', 'double', 'flight', 'xiaoyuzhou'];
+const FLIGHT_TYPES = ['flight', 'xiaoyuzhou'];
 
 export function freshState() {
   return {
@@ -77,11 +85,13 @@ export function freshState() {
     jicoins: 0,
     speed: CONFIG.kickoffSpeed,
     runTime: 0,
-    player: { x: CONFIG.playerX, y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false },
+    timeScale: 1,
+    shengchenTargetId: null,
+    player: { x: CONFIG.playerX, y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false, flightStyle: null },
     obstacles: [],
     pickups: [],
     projectiles: [],
-    powers: { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0 },
+    powers: { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0, shengchen: 0 },
     cooldown: 0,
     reminderCue: 0,
     reminderTargetId: null,
@@ -217,6 +227,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
   let hasSpawnedCat = false;
   let coinTimer = 0;
   let flightCeiling = 560;
+  let xiaoyuzhouCeiling = CONFIG.xiaoyuzhouHeight;
   let remindedObstacles = new Set();
   let bufferedJump = null;
   let openingObstaclePending = true;
@@ -259,6 +270,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     if (index === -1) return;
     state.obstacles.splice(index, 1);
     if (bufferedJump?.obstacleId === obstacle.id) bufferedJump = null;
+    if (state.shengchenTargetId === obstacle.id) endShengchen();
     emit('destroy', { obstacle: { ...obstacle }, method, ...(cat ? { cat } : {}) });
   }
 
@@ -266,7 +278,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     if (state.phase !== 'running') return false;
     const { player, powers } = state;
     if (player.landing) return false;
-    if (powers.movement === 'flight' && powers.movementTime > 0) {
+    if (FLIGHT_TYPES.includes(powers.movement) && powers.movementTime > 0) {
       player.flying = true;
       player.onGround = false;
       player.vy = CONFIG.flightLift;
@@ -279,6 +291,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     player.vy = CONFIG.jumpV * (double ? 0.95 : powers.movement === 'high' ? CONFIG.highMultiplier : 1);
     player.jumpsUsed = double ? player.jumpsUsed + 1 : 1;
     player.onGround = false;
+    if (state.shengchenTargetId !== null) state.timeScale = CONFIG.shengchenJumpScale;
     emit('jump', { x: player.x, y: player.y, ...(double ? { double: true } : {}) });
     return true;
   }
@@ -287,7 +300,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     if (state.phase !== 'running') return false;
     const { player, powers } = state;
     if (player.landing) return false;
-    if (player.onGround && !player.flying && state.reminderCue > 0 && state.reminderTargetId !== null) {
+    if (state.shengchenTargetId === null && player.onGround && !player.flying && state.reminderCue > 0 && state.reminderTargetId !== null) {
       const target = state.obstacles.find((item) => item.id === state.reminderTargetId);
       if (target) {
         const velocity = CONFIG.jumpV * (powers.movement === 'high' ? CONFIG.highMultiplier : 1);
@@ -365,10 +378,11 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     state.phase = 'running';
     state.phaseTime = 0;
     state.pausedFrom = null;
-    Object.assign(state.player, { y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false });
+    Object.assign(state.player, { y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false, flightStyle: null });
     state.powers.grace = Math.max(state.powers.grace, CONFIG.reviveGraceSeconds);
     state.reminderCue = 0;
     state.reminderTargetId = null;
+    endShengchen();
     bufferedJump = null;
     emit('revive', { x: state.player.x, y: state.player.y });
     return true;
@@ -378,6 +392,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     const { powers, player } = state;
     bufferedJump = null;
     if (pickup.type === 'jicoin') state.jicoins += 1;
+    else if (pickup.type === 'shengchen') powers.shengchen = CONFIG.shengchenCharges;
     else if (pickup.type === 'star') powers.star = CONFIG.starSeconds;
     else if (pickup.type === 'bird') {
       powers.bird = CONFIG.birdSeconds;
@@ -386,10 +401,12 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     else if (MOVEMENT_TYPES.includes(pickup.type)) {
       state.reminderCue = 0;
       state.reminderTargetId = null;
+      if (powers.movement === 'xiaoyuzhou' && pickup.type !== 'xiaoyuzhou') departXiaoyuzhou();
       powers.movement = pickup.type;
       powers.movementTime = CONFIG.movementSeconds;
-      if (pickup.type === 'flight') {
+      if (FLIGHT_TYPES.includes(pickup.type)) {
         player.flying = true;
+        player.flightStyle = pickup.type;
         player.landing = false;
         player.onGround = false;
         player.vy = 420;
@@ -402,6 +419,11 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
       state.cooldown = 0;
     }
     emit('pickup', { pickupType: pickup.type, x: pickup.x, y: pickup.y });
+  }
+
+  function departXiaoyuzhou() {
+    const { x, y, vy } = state.player;
+    emit('xiaoyuzhou-depart', { x, y, vy });
   }
 
   function beginLanding() {
@@ -443,16 +465,17 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     }
     const oldMovement = powers.movement;
     // A replacement movement power keeps its full duration during forced descent.
-    if (!(player.landing && oldMovement && oldMovement !== 'flight')) {
+    if (!(player.landing && oldMovement && !FLIGHT_TYPES.includes(oldMovement))) {
       powers.movementTime = Math.max(0, powers.movementTime - dt);
     }
     if (oldMovement && powers.movementTime < EPSILON) {
       bufferedJump = null;
       state.reminderCue = 0;
       state.reminderTargetId = null;
+      if (oldMovement === 'xiaoyuzhou') departXiaoyuzhou();
       powers.movement = null;
       powers.movementTime = 0;
-      if (oldMovement === 'flight' || player.flying) beginLanding();
+      if (FLIGHT_TYPES.includes(oldMovement) || player.flying) beginLanding();
       else powers.grace = Math.max(powers.grace, CONFIG.graceSeconds);
       emit('power-expire', { power: oldMovement });
     }
@@ -462,7 +485,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
   function generateWorld() {
     if (state.distance >= nextObstacleDistance && (openingObstaclePending || runningTime >= CONFIG.accelerationSeconds)) {
       const groundPickupNearSpawn = state.pickups.some(
-        (item) => CAT_TYPES.includes(item.type) && Math.abs(item.x - CONFIG.spawnX) < 180,
+        (item) => GROUND_PICKUP_TYPES.includes(item.type) && Math.abs(item.x - CONFIG.spawnX) < 180,
       );
       if (groundPickupNearSpawn) nextObstacleDistance += 300;
       else {
@@ -490,8 +513,8 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
           break;
         }
       }
-      const groundPickup = CAT_TYPES.includes(type);
-      if (groundPickup) {
+      const groundPickup = GROUND_PICKUP_TYPES.includes(type);
+      if (CAT_TYPES.includes(type)) {
         // Preserve the group's total draw weight while introducing Guoguo first.
         if (!hasSpawnedCat) type = 'guoguo';
         hasSpawnedCat = true;
@@ -505,13 +528,13 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
           }
         }
       }
-      const pickup = { id: ++serial, type, x, y: groundPickup ? 40 : (roll() > 0.5 ? 285 : 240), r: 25 };
-      if (type === 'star' || type === 'bird') {
+      const pickup = { id: ++serial, type, x, y: groundPickup ? (type === 'shengchen' ? 30 : 40) : (roll() > 0.5 ? 285 : 240), r: 25 };
+      if (type === 'star' || type === 'bird' || type === 'xiaoyuzhou') {
         pickup.flightPath = true;
         pickup.vx = -90 - roll() * 50;
-        pickup.vy = type === 'star' ? -18 - roll() * 12 : 0;
+        pickup.vy = type === 'bird' ? 0 : -18 - roll() * 12;
         pickup.age = 0;
-        pickup.y = type === 'star' ? 320 : 310;
+        pickup.y = type === 'bird' ? 310 : 320;
         pickup.baseY = pickup.y;
       }
       state.pickups.push(pickup);
@@ -536,8 +559,52 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     emit('jump-cue', { obstacleId: target.id, x: player.x, y: player.y + 175 });
   }
 
+  function endShengchen() {
+    const active = state.shengchenTargetId !== null;
+    state.shengchenTargetId = null;
+    state.timeScale = 1;
+    if (active) emit('shengchen-end');
+  }
+
+  function shengchenTarget() {
+    const target = state.obstacles.find(item => item.id === state.shengchenTargetId);
+    const { player, powers } = state;
+    if (state.shengchenTargetId !== null && (!target
+      || target.x + target.width / 2 < player.x - CONFIG.playerWidth / 2
+      || powers.star > 0 || powers.grace > 0 || player.flying || player.landing)) {
+      endShengchen();
+      return null;
+    }
+    return target;
+  }
+
+  function updateShengchen() {
+    const { player, powers } = state;
+    let target = shengchenTarget();
+    if (!target && powers.shengchen > 0 && player.onGround
+      && !player.flying && !player.landing && powers.star <= 0 && powers.grace <= 0) {
+      target = state.obstacles
+        .filter(item => item.x - item.width / 2 >= player.x + CONFIG.playerWidth / 2)
+        .sort((a, b) => a.x - a.width / 2 - (b.x - b.width / 2))[0];
+      const gap = target ? target.x - target.width / 2 - player.x - CONFIG.playerWidth / 2 : Infinity;
+      const velocity = CONFIG.jumpV * (powers.movement === 'high' ? CONFIG.highMultiplier : 1);
+      if (gap > state.speed * CONFIG.shengchenLead
+        || !canJumpObstacleNow(player, target, state.speed, velocity, flightCeiling)) return;
+      state.shengchenTargetId = target.id;
+      powers.shengchen -= 1;
+      bufferedJump = null;
+      emit('shengchen-start', { obstacleId: target.id, remaining: powers.shengchen });
+    }
+    if (state.shengchenTargetId === null) return;
+    state.timeScale = player.onGround ? CONFIG.shengchenWaitScale : CONFIG.shengchenJumpScale;
+  }
+
   function step(dt) {
     if (['ready', 'paused', 'gameover'].includes(state.phase)) return;
+    if (state.phase === 'running') {
+      updateShengchen();
+      dt *= state.timeScale;
+    }
     state.phaseTime += dt;
     state.time += dt;
     if (state.phase === 'launch') {
@@ -573,8 +640,9 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
       const velocity = player.flying ? Math.max(-terminal, player.vy) : player.vy;
       player.y += velocity * dt - 0.5 * gravity * dt * dt;
       player.vy = player.flying ? Math.max(-terminal, velocity - gravity * dt) : velocity - gravity * dt;
-      if (player.y > flightCeiling) {
-        player.y = flightCeiling;
+      const ceiling = player.flightStyle === 'xiaoyuzhou' ? xiaoyuzhouCeiling : flightCeiling;
+      if (player.y > ceiling) {
+        player.y = ceiling;
         player.vy = Math.min(player.vy, 0);
       }
       if (player.y < EPSILON && player.vy < 0) {
@@ -585,6 +653,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
         if (player.landing) {
           player.flying = false;
           player.landing = false;
+          player.flightStyle = null;
           state.powers.grace = Math.max(state.powers.grace, CONFIG.graceSeconds);
           emit('flight-land', { x: player.x, y: 0 });
         }
@@ -632,6 +701,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
       if (!playerHitsObstacle(player, obstacle)) continue;
       if (state.powers.star > 0 || state.powers.grace > 0 || player.landing) destroy(obstacle, 'invincible');
       else {
+        endShengchen();
         state.phase = 'falling';
         state.phaseTime = 0;
         emit('hit', { obstacle: { ...obstacle } });
@@ -639,6 +709,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
       }
     }
     state.obstacles = state.obstacles.filter((obstacle) => obstacle.x + obstacle.width / 2 > -80);
+    shengchenTarget();
     // A small epsilon prevents exact integer bonuses displaying one point short.
     state.score = Math.floor(state.distance / 12 + state.bonus + EPSILON);
     if (state.phase === 'running') {
@@ -668,10 +739,12 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     pause,
     resume,
     revive,
-    setFlightCeiling(height) {
+    setFlightCeiling(height, planetHeight = height + 80) {
       if (Number.isFinite(height)) flightCeiling = Math.max(220, Math.min(560, height));
-      if (state.player.y > flightCeiling) {
-        state.player.y = flightCeiling;
+      if (Number.isFinite(planetHeight)) xiaoyuzhouCeiling = Math.max(220, Math.min(CONFIG.xiaoyuzhouHeight, planetHeight));
+      const ceiling = state.player.flightStyle === 'xiaoyuzhou' ? xiaoyuzhouCeiling : flightCeiling;
+      if (state.player.y > ceiling) {
+        state.player.y = ceiling;
         state.player.vy = Math.min(0, state.player.vy);
       }
       return flightCeiling;

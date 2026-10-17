@@ -44,7 +44,7 @@ function clearWorld(state) {
 }
 
 function resetPowers(state) {
-  Object.assign(state.powers, { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0 });
+  Object.assign(state.powers, { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0, shengchen: 0 });
 }
 
 function advanceToSpeed(game, speed) {
@@ -78,8 +78,226 @@ function observeRun(game, seconds) {
   return { obstacles, pickups };
 }
 
-test('jicoins stack, outlast timed powers and never replace an equipped skill', () => {
+function approachClock(game, target) {
+  for (let step = 0; step < 1200 && game.state.shengchenTargetId === null && game.state.phase === 'running'; step++) {
+    game.state.obstacles = [target];
+    game.state.pickups = [];
+    game.update(CONFIG.step);
+  }
+  assert.equal(game.state.phase, 'running');
+  assert.equal(game.state.shengchenTargetId, target.id);
+}
+
+function clearClockJump(game, target) {
+  assert.equal(game.jump(), true);
+  assert.equal(game.state.timeScale, CONFIG.shengchenJumpScale);
+  for (let step = 0; step < 1200 && game.state.shengchenTargetId !== null; step++) {
+    game.state.obstacles = [target];
+    game.state.pickups = [];
+    game.update(CONFIG.step);
+    assert.equal(game.state.phase, 'running', 'the slowed jump must actually clear the furniture');
+    if (target.x + target.width / 2 >= game.state.player.x - CONFIG.playerWidth / 2) {
+      assert.notEqual(game.state.timeScale, 1, 'normal speed cannot return before the whole group is behind the rider');
+    }
+  }
+  assert.equal(game.state.shengchenTargetId, null);
+  assert.equal(game.state.timeScale, 1);
+}
+
+test('shengchen gives three persistent charges, coexists with skills and refreshes rather than stacks', () => {
   const { game, state } = runningGame();
+  pickup(game, 'football');
+  pickup(game, 'double');
+  pickup(game, 'jicoin');
+  pickup(game, 'shengchen');
+  assert.equal(state.powers.shengchen, 3);
+  assert.equal(state.powers.skill, 'football');
+  assert.equal(state.powers.movement, 'double');
+  assert.equal(state.jicoins, 1);
+  state.powers.star = 100;
+  game.update(15);
+  assert.equal(state.powers.shengchen, 3);
+  state.powers.shengchen = 1;
+  pickup(game, 'shengchen');
+  assert.equal(state.powers.shengchen, 3);
+  game.start();
+  assert.equal(state.powers.shengchen, 0);
+  assert.equal(state.timeScale, 1);
+  assert.equal(state.shengchenTargetId, null);
+});
+
+test('shengchen slows every game clock and supports prompt jumps across every obstacle and ceiling', () => {
+  for (const shape of OBSTACLE_VARIANTS) for (const delay of [0, .5, 1]) {
+    const { game, state, events } = runningGame();
+    advanceToSpeed(game, shape.minSpeed);
+    game.setFlightCeiling(220);
+    pickup(game, 'shengchen');
+    const target = obstacle(state, shape.key, state.player.x + 550);
+    approachClock(game, target);
+    assert.equal(state.powers.shengchen, 2);
+    assert.equal(state.timeScale, CONFIG.shengchenWaitScale);
+    const startTime = state.runTime, startX = target.x;
+    state.powers.bird = 8;
+    state.powers.skill = 'football';
+    state.powers.skillTime = 10;
+    game.update(delay);
+    assert.equal(state.phase, 'running');
+    assert.equal(state.player.onGround, true, 'the clock cannot jump automatically');
+    assert.equal(state.powers.shengchen, 2, 'waiting never spends another charge');
+    assert.ok(state.runTime - startTime <= delay * CONFIG.shengchenWaitScale + 1e-7);
+    assert.ok(Math.abs((8 - state.powers.bird) - (state.runTime - startTime)) < 1e-7);
+    assert.ok(Math.abs((10 - state.powers.skillTime) - (state.runTime - startTime)) < 1e-7);
+    assert.ok(startX - target.x < state.speed * CONFIG.shengchenLead);
+    clearClockJump(game, target);
+    assert.equal(events.filter(event => event.type === 'shengchen-start').length, 1);
+    assert.equal(events.filter(event => event.type === 'shengchen-end').length, 1);
+  }
+});
+
+test('shengchen triggers closer and continuing without a jump causes a real collision in about three seconds', () => {
+  for (const shape of OBSTACLE_VARIANTS) for (const speed of [shape.minSpeed, CONFIG.maxSpeed]) {
+    const { game, state, events } = runningGame();
+    advanceToSpeed(game, speed);
+    pickup(game, 'shengchen');
+    const target = obstacle(state, shape.key, state.player.x + 550);
+    approachClock(game, target);
+    const gap = target.x - target.width / 2 - state.player.x - CONFIG.playerWidth / 2;
+    assert.ok(gap / state.speed <= .18);
+    assert.ok(gap / state.speed > .16, 'the trigger must retain enough space for a normal takeoff');
+    let elapsed = 0;
+    while (state.phase === 'running' && elapsed < 4) {
+      const previousX = target.x;
+      assert.equal(state.timeScale, CONFIG.shengchenWaitScale);
+      game.update(CONFIG.step);
+      elapsed += CONFIG.step;
+      assert.ok(target.x < previousX, 'the obstacle must keep approaching instead of freezing');
+      assert.equal(state.player.onGround, true, 'waiting never jumps automatically');
+    }
+    assert.equal(state.phase, 'falling');
+    assert.ok(elapsed > 2.75 && elapsed < 3.05, `${shape.key} at ${speed}: ${elapsed}s`);
+    assert.equal(state.powers.shengchen, 2, 'one missed obstacle spends one opportunity');
+    assert.equal(state.timeScale, 1, 'the fall animation returns to normal speed');
+    assert.equal(state.shengchenTargetId, null);
+    assert.equal(events.filter(event => event.type === 'hit').length, 1);
+    game.update(CONFIG.fallSeconds);
+    assert.equal(state.phase, 'gameover');
+  }
+});
+
+test('shengchen spends exactly three opportunities and the fourth missed jump still causes a fall', () => {
+  const { game, state } = runningGame();
+  advanceToSpeed(game, CONFIG.maxSpeed);
+  pickup(game, 'shengchen');
+  for (const remaining of [2, 1, 0]) {
+    clearWorld(state);
+    while (!state.player.onGround) game.update(CONFIG.step);
+    const target = obstacle(state, 'desk-long', state.player.x + 550, 9000 + remaining);
+    approachClock(game, target);
+    assert.equal(state.powers.shengchen, remaining);
+    clearClockJump(game, target);
+  }
+  clearWorld(state);
+  while (!state.player.onGround) game.update(CONFIG.step);
+  obstacle(state, 'desk-short', state.player.x + 200);
+  game.update(.8);
+  assert.equal(state.phase, 'falling');
+  assert.equal(state.timeScale, 1);
+});
+
+test('shengchen uses the equipped jump arc and works alongside the reminder without buffering input', () => {
+  for (const movement of ['high', 'double']) for (const speed of [300, 450]) {
+    const { game, state } = runningGame();
+    advanceToSpeed(game, speed);
+    game.setFlightCeiling(220);
+    pickup(game, movement);
+    pickup(game, 'reminder');
+    pickup(game, 'shengchen');
+    const target = obstacle(state, speed === 450 ? 'desk-long' : 'stool-2', state.player.x + 550);
+    approachClock(game, target);
+    game.update(1);
+    state.reminderTargetId = target.id;
+    state.reminderCue = .5;
+    clearClockJump(game, target);
+    assert.equal(state.powers.shengchen, 2);
+    assert.equal(state.powers.movement, movement);
+    assert.equal(state.player.jumpsUsed, 1);
+  }
+});
+
+test('shengchen pause/resume preserves the current slow moment and restart cancels it', () => {
+  const { game, state } = runningGame();
+  advanceToSpeed(game, 420);
+  pickup(game, 'shengchen');
+  const target = obstacle(state, 'store', state.player.x + 550);
+  approachClock(game, target);
+  game.pause();
+  const paused = structuredClone(state);
+  game.update(5);
+  assert.deepEqual(state, paused);
+  game.resume();
+  assert.equal(state.shengchenTargetId, target.id);
+  clearClockJump(game, target);
+  clearWorld(state);
+  while (!state.player.onGround) game.update(CONFIG.step);
+  const another = obstacle(state, 'stool-2', state.player.x + 550, 9001);
+  approachClock(game, another);
+  game.start();
+  assert.equal(state.shengchenTargetId, null);
+  assert.equal(state.timeScale, 1);
+  assert.equal(state.powers.shengchen, 0);
+});
+
+test('shengchen never spends a charge on timely jumps, protection, flight or forced descent', () => {
+  for (const mode of ['jump', 'star', 'grace', 'flight', 'xiaoyuzhou', 'landing']) {
+    const { game, state, events } = runningGame();
+    advanceToSpeed(game, 450);
+    pickup(game, 'shengchen');
+    if (['flight', 'xiaoyuzhou'].includes(mode)) pickup(game, mode);
+    if (mode === 'landing') Object.assign(state.player, { flying: true, landing: true, onGround: false, y: 150, vy: -50 });
+    if (mode === 'jump') game.jump();
+    if (mode === 'star') state.powers.star = 1;
+    if (mode === 'grace') state.powers.grace = 1;
+    obstacle(state, 'stool-1', state.player.x + 170);
+    game.update(.3);
+    assert.equal(state.powers.shengchen, 3, mode);
+    assert.equal(state.timeScale, 1, mode);
+    assert.equal(events.some(event => event.type === 'shengchen-start'), false, mode);
+  }
+});
+
+test('destroying or removing the slowed target immediately restores normal speed without spending again', () => {
+  for (const method of ['guoguo', 'football', 'remove', 'star', 'flight']) {
+    const { game, state, events } = runningGame();
+    advanceToSpeed(game, 450);
+    if (['guoguo', 'football'].includes(method)) pickup(game, method);
+    pickup(game, 'shengchen');
+    const target = obstacle(state, 'stool-2', state.player.x + 550);
+    approachClock(game, target);
+    if (method === 'remove') state.obstacles = [];
+    else if (method === 'star' || method === 'flight') pickup(game, method);
+    else game.useSkill();
+    for (let step = 0; step < 1200 && state.shengchenTargetId !== null; step++) game.update(CONFIG.step);
+    assert.equal(state.shengchenTargetId, null, method);
+    assert.equal(state.timeScale, 1, method);
+    assert.equal(state.powers.shengchen, 2, method);
+    assert.equal(events.filter(event => event.type === 'shengchen-end').length, 1);
+  }
+});
+
+test('shengchen generates on the road away from furniture and can be collected without jumping', () => {
+  const { game } = runningGame(() => .999999);
+  const run = observeRun(game, 14);
+  assert.ok(run.pickups.some(item => item.type === 'shengchen' && item.y === 30 && !item.flightPath));
+  const ground = runningGame();
+  const { state } = ground;
+  state.pickups.push({ id: 8000, type: 'shengchen', x: state.player.x + 50, y: 30, r: 25 });
+  ground.game.update(.05);
+  assert.equal(state.powers.shengchen, 3);
+  assert.equal(state.player.onGround, true);
+});
+
+test('jicoins stack, outlast timed powers and never replace an equipped skill', () => {
+  const { game, state } = runningGame(() => 0);
   pickup(game, 'football');
   pickup(game, 'jicoin');
   pickup(game, 'jicoin');
@@ -529,10 +747,10 @@ test('restart clears every run state while preserving the public state reference
   assert.deepEqual(state.obstacles, []);
   assert.deepEqual(state.pickups, []);
   assert.deepEqual(state.projectiles, []);
-  assert.deepEqual(state.powers, { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0 });
+  assert.deepEqual(state.powers, { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0, shengchen: 0 });
   assert.equal(state.reminderCue, 0);
   assert.equal(state.reminderTargetId, null);
-  assert.deepEqual(state.player, { x: CONFIG.playerX, y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false });
+  assert.deepEqual(state.player, { x: CONFIG.playerX, y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false, flightStyle: null });
 });
 
 test('both airborne pickup heights require jumping and are reachable with the lower jump arc', () => {
@@ -712,7 +930,7 @@ test('even constant random rolls cannot repeat pickups or place swallow pets con
   }
 });
 
-test('all eleven pickups appear, first pet is guoguo and guoguo remains more common among pets', () => {
+test('all thirteen pickups appear, first pet is guoguo and guoguo remains more common among pets', () => {
   const pets = new Set(['guoguo', 'keke', 'otter']);
   const counts = {};
   let total = 0;
@@ -732,8 +950,10 @@ test('all eleven pickups appear, first pet is guoguo and guoguo remains more com
       }
     }
   }
-  assert.equal(Object.keys(counts).length, 11);
+  assert.equal(Object.keys(counts).length, 13);
   assert.ok(counts.jicoin > 0);
+  assert.ok(counts.xiaoyuzhou > 0);
+  assert.ok(counts.shengchen > 0);
   assert.ok(sawNonPetOpening, 'the first overall pickup does not have to be a pet');
   assert.ok(counts.guoguo / total > 0.12 && counts.guoguo / total < 0.18);
   for (const [type, count] of Object.entries(counts)) {
@@ -744,11 +964,11 @@ test('all eleven pickups appear, first pet is guoguo and guoguo remains more com
 });
 
 test('restarting clears pickup exclusions and restores the first-guoguo guarantee', () => {
-  const { game } = runningGame(() => 0.54);
+  const { game } = runningGame(() => 0.49);
   const first = observeRun(game, 35).pickups;
   assert.ok(first.length >= 3);
   assert.equal(first[0].type, 'guoguo');
-  assert.ok(first.some((item) => item.type === 'keke'));
+  assert.ok(first.some((item) => ['keke', 'otter'].includes(item.type)));
   game.start();
   game.update(CONFIG.launchSeconds);
   const retry = observeRun(game, 8.4).pickups;
@@ -919,6 +1139,141 @@ test('expired flight forces a protected smooth landing and pressing jump cannot 
   assert.equal(events.filter((item) => item.type === 'power-expire' && item.power === 'flight').length, 1);
 });
 
+test('xiaoyuzhou matches ordinary flight lift, descends without input and respects viewport changes', () => {
+  const { game, state } = runningGame();
+  const ordinary = runningGame();
+  pickup(ordinary.game, 'flight');
+  pickup(game, 'xiaoyuzhou');
+  assert.equal(state.powers.movement, 'xiaoyuzhou');
+  assert.equal(state.powers.skill, null);
+  assert.equal(state.player.flightStyle, 'xiaoyuzhou');
+  assert.equal(state.player.flying, true);
+  assert.equal(state.player.vy, ordinary.state.player.vy, 'both pickups have the same initial lift');
+  game.update(.9);
+  ordinary.game.update(.9);
+  assert.equal(state.player.y, ordinary.state.player.y);
+  assert.equal(state.player.vy, ordinary.state.player.vy);
+  assert.equal(game.jump(), true);
+  assert.equal(ordinary.game.jump(), true);
+  assert.equal(state.player.vy, CONFIG.flightLift);
+  assert.equal(state.player.vy, ordinary.state.player.vy);
+  game.update(.8);
+  ordinary.game.update(.8);
+  assert.equal(state.player.y, ordinary.state.player.y, 'repeated inputs follow the ordinary flight arc');
+  const upper = state.player.y;
+  game.update(.5);
+  assert.ok(state.player.y < upper);
+  assert.ok(state.player.vy < 0);
+  game.setFlightCeiling(250, 280);
+  assert.equal(state.player.y, 280);
+  assert.equal(game.jump(), true);
+  assert.equal(state.player.vy, CONFIG.flightLift);
+  game.update(CONFIG.step);
+  assert.equal(state.player.y, 280);
+  game.update(.5);
+  assert.ok(state.player.y < 280);
+  game.setFlightCeiling(560, 620);
+  game.jump();
+  game.update(.5);
+  game.jump();
+  game.update(.5);
+  game.jump();
+  game.update(.3);
+  assert.ok(state.player.y > 550 && state.player.y <= 620);
+  state.powers.grace = 100;
+  game.update(3.5);
+  assert.equal(state.player.y, 0, 'releasing input allows the rider to descend all the way to the road');
+  assert.equal(game.jump(), true, 'another input can lift off again while the power is active');
+  assert.equal(state.player.vy, CONFIG.flightLift);
+});
+
+test('xiaoyuzhou refreshes, pauses and departs exactly once before a protected landing', () => {
+  const { game, state, events } = runningGame();
+  pickup(game, 'football');
+  pickup(game, 'xiaoyuzhou');
+  game.update(.9);
+  game.jump();
+  game.update(.8);
+  pickup(game, 'xiaoyuzhou');
+  assert.equal(state.powers.movementTime, CONFIG.movementSeconds);
+  assert.equal(state.powers.skill, 'football', 'the new movement power preserves equipped skills');
+  assert.equal(events.some(event => event.type === 'xiaoyuzhou-depart'), false);
+  game.pause();
+  const frozen = structuredClone(state);
+  game.update(5);
+  assert.deepEqual(state, frozen);
+  game.resume();
+  state.powers.movementTime = CONFIG.step;
+  game.update(CONFIG.step);
+  assert.equal(state.powers.movement, null);
+  assert.equal(state.player.landing, true);
+  assert.equal(state.player.flightStyle, 'xiaoyuzhou');
+  const departure = events.find(event => event.type === 'xiaoyuzhou-depart');
+  assert.ok(departure.y > 300);
+  let previousHeight = state.player.y, steps = 0;
+  while (state.player.landing && steps++ < 700) {
+    assert.equal(game.jump(), false);
+    if (state.player.y < 85 && !state.obstacles.length) obstacle(state, 'desk-short', state.player.x, 9800);
+    game.update(CONFIG.step);
+    assert.ok(state.player.y <= previousHeight && state.player.y >= 0);
+    assert.ok(previousHeight - state.player.y <= CONFIG.landingFallSpeed * CONFIG.step + .1);
+    previousHeight = state.player.y;
+  }
+  assert.ok(steps < 700);
+  assert.equal(state.phase, 'running');
+  assert.equal(state.player.y, 0);
+  assert.equal(state.player.flightStyle, null);
+  assert.equal(state.player.flying, false);
+  assert.equal(state.powers.grace, CONFIG.graceSeconds);
+  assert.equal(events.filter(event => event.type === 'xiaoyuzhou-depart').length, 1);
+  assert.equal(events.filter(event => event.type === 'power-expire' && event.power === 'xiaoyuzhou').length, 1);
+});
+
+test('replacing xiaoyuzhou releases its planet and preserves replacement movement behavior', () => {
+  for (const replacement of ['high', 'double', 'flight']) {
+    const { game, state, events } = runningGame();
+    pickup(game, 'xiaoyuzhou');
+    game.update(.6);
+    pickup(game, replacement);
+    assert.equal(state.powers.movement, replacement);
+    assert.equal(state.powers.movementTime, CONFIG.movementSeconds);
+    assert.equal(events.filter(event => event.type === 'xiaoyuzhou-depart').length, 1);
+    if (replacement === 'flight') {
+      assert.equal(state.player.landing, false);
+      assert.equal(state.player.flightStyle, 'flight');
+      assert.equal(game.jump(), true);
+    } else {
+      assert.equal(state.player.landing, true);
+      for (let step = 0; state.player.landing && step < 700; step++) game.update(CONFIG.step);
+      assert.equal(state.player.landing, false);
+      assert.equal(state.powers.movementTime, CONFIG.movementSeconds);
+    }
+  }
+  const { game, state } = runningGame();
+  pickup(game, 'flight');
+  game.update(.5);
+  pickup(game, 'xiaoyuzhou');
+  game.update(1);
+  assert.equal(state.player.flightStyle, 'xiaoyuzhou');
+  assert.ok(state.player.y > 300);
+  game.start();
+  assert.equal(state.player.flightStyle, null);
+  assert.equal(state.powers.movement, null);
+});
+
+test('scheduled xiaoyuzhou flies through the sky within normal jump reach', () => {
+  const { game, state } = runningGame(() => .92);
+  state.powers.star = 1000;
+  game.update(10.01);
+  const planet = state.pickups.find(item => item.type === 'xiaoyuzhou');
+  assert.ok(planet?.flightPath);
+  const before = { ...planet, distance: state.distance };
+  game.update(.25);
+  assert.ok(Math.abs(planet.x - (before.x - (state.distance - before.distance) + planet.vx * .25)) < 1e-6);
+  assert.ok(planet.y < before.y && planet.y >= 225 && planet.y <= 320);
+  assert.ok(planet.vx <= -90 && planet.vx >= -140);
+});
+
 test('replacing flight settles first, preserves the new power duration, and pauses every new field', () => {
   const { game, state } = runningGame();
   pickup(game, 'flight');
@@ -983,7 +1338,7 @@ test('generated stars and birds fly along their own visible and normally reachab
 });
 
 test('flying pickup collision and pickup events use the actual updated position', () => {
-  for (const type of ['star', 'bird']) {
+  for (const type of ['star', 'bird', 'xiaoyuzhou']) {
     const { game, state, events } = runningGame();
     const item = { id: 100, type, x: state.player.x + 120, y: 315, r: 25, flightPath: true, vx: -120, vy: -25, age: 0, baseY: 315 };
     state.pickups.push(item);

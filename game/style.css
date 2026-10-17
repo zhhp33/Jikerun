@@ -219,12 +219,17 @@ kbd { display: inline-block; padding: 0 4px; border: 1px solid #4c6265; border-r
 .power-chip .power-emoji { font-size: 16px; line-height: 1; }
 .power-chip .power-image { width: 17px; height: 17px; object-fit: contain; border-radius: 5px; }
 .power-chip .power-bird { clip-path: inset(3% round 24%); border: 0; background: none; box-shadow: none; }
-.power-chip .power-name { white-space: nowrap; min-width: 0; }
+.power-chip .power-name { white-space: normal; overflow-wrap: anywhere; min-width: 0; line-height: 1.35; }
+.power-chip .power-label-part { display: inline-block; white-space: nowrap; }
 .power-chip .power-time { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .power-chip .power-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: #f3d963; transform-origin: left; }
 .power-chip.expiring { animation: expiry .6s ease-in-out infinite; }
 .power-chip.grace { border-color: #527a7d; color: #bbdbd2; background: #193b41; }
 .power-chip.grace .power-progress { background: #9ec8bc; }
+.power-chip[data-power="shengchen"] { grid-column: 1 / -1; justify-self: start; color: #e5e8e4; border-color: #8b9591; }
+.power-chip[data-power="shengchen"] .power-progress { background: #dce5e1; }
+.power-chip.slowing { border-color: #edf2ee; box-shadow: 0 0 16px #dce5e12a; }
+.shengchen-cue { position: absolute; left: 5%; right: 5%; bottom: 40%; color: #edf2ee; font-size: clamp(11px, 3cqw, 14px); font-weight: 600; text-align: center; text-shadow: 0 2px 7px #102731; pointer-events: none; }
 .action-dock { position: absolute; right: 5%; bottom: 4%; display: flex; flex-direction: column-reverse; align-items: center; gap: 9px; }
 .action-key-hint { color: #8aa8a8; font-size: 10px; letter-spacing: .5px; }
 .action-button {

@@ -133,11 +133,49 @@ export function drawFootball(ctx, x, y, r = 21.5, spin = 0) {
   ctx.restore();
 }
 
+/** Cyan planet and dark orbit redrawn from the Xiaoyuzhou app icon. */
+export function drawXiaoyuzhou(ctx, x, y, r = 25, tilt = -.64) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(r / 25, r / 25);
+  const ring = (start, end) => {
+    ctx.save(); ctx.rotate(tilt);
+    ctx.beginPath(); ctx.ellipse(0, 0, 35, 10.5, 0, start, end);
+    ctx.strokeStyle = '#080e13'; ctx.lineWidth = 4.5; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, -1, 35, 10.5, 0, start, end);
+    ctx.strokeStyle = '#718b91'; ctx.lineWidth = .65; ctx.stroke(); ctx.restore();
+  };
+  ring(Math.PI, TAU);
+  const planet = ctx.createLinearGradient(-10, -24, 10, 24);
+  planet.addColorStop(0, '#20b9d8'); planet.addColorStop(.48, '#50bdd2'); planet.addColorStop(1, '#bedfd8');
+  oval(ctx, 0, 0, 24, 24, planet, '#8ed8df', 1.2);
+  ctx.beginPath(); ctx.ellipse(0, 0, 22.5, 22.5, 0, Math.PI * 1.08, Math.PI * 1.78);
+  ctx.strokeStyle = '#c0f4ef'; ctx.lineWidth = 1; ctx.stroke();
+  ring(0, Math.PI);
+  ctx.restore();
+}
+
 /** Original game objects inspired by each app's subject and color, never logo tiles. */
 export function drawAppPickup(ctx, type, x, y, r = 25, t = 0, { countdown = false } = {}) {
   ctx.save(); ctx.translate(x, y); ctx.scale(r / 25, r / 25);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  if (type === 'high') {
+  if (type === 'shengchen') {
+    // Slim dark rim, clean white dial and red second hand, like the reference clock.
+    oval(ctx, 1, 2, 24, 24, '#0b182233');
+    const face = ctx.createRadialGradient(-8, -10, 2, 0, 0, 23);
+    face.addColorStop(0, '#ffffff'); face.addColorStop(1, '#edede8');
+    oval(ctx, 0, 0, 23, 23, face, '#4b4c49', 2.2);
+    oval(ctx, 0, 0, 21.1, 21.1, null, '#c9cbc5', .7);
+    const hand = (angle, length, color, width, tail = 0) => {
+      ctx.save(); ctx.rotate(angle);
+      strokeLine(ctx, [[0, tail], [0, -length]], color, width);
+      ctx.restore();
+    };
+    hand(.48, 9, '#262a2a', 1.2);
+    hand(Math.PI, 14, '#464945', .85);
+    hand(-2.42 + t * .9, 17, '#df6d61', .7, 4);
+    oval(ctx, 0, 0, 1.2, 1.2, '#df6d61');
+  } else if (type === 'xiaoyuzhou') {
+    drawXiaoyuzhou(ctx, 0, 0, 23, -.64 + Math.sin(t * 2) * .025);
+  } else if (type === 'high') {
     // A little lift potion in a blue glass jar, with a bright cap and rising bubbles.
     const glass = ctx.createLinearGradient(-14, 0, 14, 0);
     glass.addColorStop(0, '#8ee1e5'); glass.addColorStop(.55, '#4aabc8'); glass.addColorStop(1, '#438aa9');

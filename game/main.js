@@ -1,5 +1,5 @@
-import { createGame, CONFIG } from './engine.js?v=20261017-40-high-ground';
-import { Renderer } from './render.js?v=20261017-40-high-ground';
+import { createGame, CONFIG } from './engine.js?v=20261020-03-box-boost';
+import { Renderer } from './render.js?v=20261020-03-box-boost';
 import { GameAudio } from './audio.js?v=20261016-17-stool-c';
 import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261017-35-shengchen';
 import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.js?v=20261016-25-eight-cities';
@@ -101,7 +101,7 @@ function pickupMessage(type) {
   otter: 'Otterlife帮你解压',
   high: `跳得更高！${jump}起跳`,
   double: '二段跳，现在可以连跳两次',
-  flight: `小组件盒子带你飞，${jump}向上飞`,
+  flight: `小组件盒子带你飞，${jump}向上飞，${skill}加速`,
   xiaoyuzhou: `小宇宙带你飞，${jump}向上飞`,
   reminder: 'Kuli Kuli 为你翻译，看到圆圈就起跳',
   jicoin: '摔倒后可原地复活',
@@ -221,7 +221,7 @@ function revive() {
 
 function skillAction() {
   audio.prepare();
-  return game.useSkill();
+  return game.useAction();
 }
 
 $('start-button').addEventListener('click', start);
@@ -330,14 +330,16 @@ function updatePowers() {
     el.querySelector('.power-time').textContent = `${Math.ceil(power.time)}${power.counted ? '次' : 's'}`;
     el.querySelector('.power-progress').style.transform = `scaleX(${Math.min(1, power.time / power.max)})`;
   }
-  const skill = p.skill;
+  const action = game.currentAction();
+  const boost = action === 'boost';
+  const skill = boost ? 'boost' : p.skill;
   ui['action-button'].dataset.skill = skill || '';
-  const label = skill === 'football' ? '射门' : '吞障碍';
+  const label = boost ? '加速' : skill === 'football' ? '射门' : '吞障碍';
   ui['action-label'].textContent = label;
-  ui['action-icon'].textContent = skill === 'football' ? '⚽' : '🐾';
+  ui['action-icon'].textContent = boost ? '⚡' : skill === 'football' ? '⚽' : '🐾';
   ui['action-button'].setAttribute('aria-label', label);
-  ui['action-dock'].hidden = !(skill && p.skillTime > 0 && game.state.phase === 'running');
-  ui['action-button'].disabled = game.state.cooldown > 0 || game.state.phase !== 'running';
+  ui['action-dock'].hidden = !(action && game.state.phase === 'running');
+  ui['action-button'].disabled = (boost ? game.state.boostCooldown : game.state.cooldown) > 0 || game.state.phase !== 'running';
 }
 
 function positionNotices() {

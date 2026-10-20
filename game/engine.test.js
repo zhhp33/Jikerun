@@ -737,17 +737,18 @@ test('restart clears every run state while preserving the public state reference
   state.reminderCue = 0.5;
   state.reminderTargetId = 123;
   game.useSkill();
+  game.boost();
   obstacle(state);
   game.pause();
   game.start();
   assert.equal(game.state, state);
   assert.equal(state.phase, 'launch');
   assert.equal(state.pausedFrom, null);
-  for (const field of ['time', 'distance', 'score', 'bonus', 'cooldown']) assert.equal(state[field], 0);
+  for (const field of ['time', 'distance', 'score', 'bonus', 'cooldown', 'boost', 'boostCooldown']) assert.equal(state[field], 0);
   assert.deepEqual(state.obstacles, []);
   assert.deepEqual(state.pickups, []);
   assert.deepEqual(state.projectiles, []);
-  assert.deepEqual(state.powers, { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0, shengchen: 0 });
+  assert.deepEqual(state.powers, { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0, shengchen: 0, action: null });
   assert.equal(state.reminderCue, 0);
   assert.equal(state.reminderTargetId, null);
   assert.deepEqual(state.player, { x: CONFIG.playerX, y: 0, vy: 0, onGround: true, jumpsUsed: 0, flying: false, landing: false, flightStyle: null });
@@ -1496,4 +1497,67 @@ test('pending reminder inputs are cancelled by pause, restart, power changes and
     if (cancellation === 'flight') assert.equal(state.player.flying, true);
     else assert.equal(state.player.onGround, true);
   }
+});
+
+test('box flight boost covers more ground, respects cooldown and never becomes a jump', () => {
+  const { game, state, events } = runningGame();
+  assert.equal(game.boost(), false);
+  assert.equal(game.useAction(), false);
+  pickup(game, 'flight');
+  clearWorld(state);
+  assert.equal(game.currentAction(), 'boost');
+  assert.equal(game.useAction(), true);
+  assert.equal(game.useAction(), false);
+  const boosted = state.distance, startTime = state.runTime;
+  game.update(0.2);
+  const normal = worldDistanceAt(state.runTime) - worldDistanceAt(startTime);
+  assert.ok(Math.abs((state.distance - boosted) / normal - CONFIG.boostMultiplier) < 1e-6);
+  assert.equal(events.filter((item) => item.type === 'boost').length, 1);
+  assert.equal(events.filter((item) => item.type === 'jump').length, 0);
+  game.update(CONFIG.boostSeconds + CONFIG.boostCooldown);
+  assert.equal(state.boost, 0);
+  assert.equal(game.useAction(), true);
+});
+
+test('boost smashes obstacles and leaves grace when it ends or the box is replaced', () => {
+  const { game, state, events } = runningGame();
+  pickup(game, 'flight');
+  clearWorld(state);
+  game.boost();
+  state.player.y = 0; state.player.vy = 0;
+  const target = obstacle(state, 'store', state.player.x + 10);
+  game.update(CONFIG.step);
+  assert.equal(state.phase, 'running');
+  assert.ok(!state.obstacles.includes(target));
+  assert.equal(events.find((item) => item.type === 'destroy').method, 'boost');
+  state.powers.grace = 0;
+  game.update(CONFIG.boostSeconds);
+  assert.equal(state.boost, 0);
+  assert.ok(state.powers.grace > 0);
+  assert.equal(events.filter((item) => item.type === 'power-expire' && item.power === 'boost').length, 1);
+
+  game.update(CONFIG.boostCooldown);
+  state.powers.grace = 0;
+  assert.equal(game.boost(), true);
+  pickup(game, 'double');
+  assert.equal(state.boost, 0);
+  assert.ok(state.powers.grace > 0);
+  assert.equal(game.currentAction(), null);
+});
+
+test('the shared action button follows the most recent of skill and box, falling back when one ends', () => {
+  const { game, state } = runningGame();
+  pickup(game, 'football');
+  assert.equal(game.currentAction(), 'skill');
+  pickup(game, 'flight');
+  assert.equal(game.currentAction(), 'boost');
+  assert.equal(game.useAction(), true);
+  assert.equal(state.projectiles.length, 0);
+  pickup(game, 'football');
+  assert.equal(game.currentAction(), 'skill');
+  assert.equal(game.useAction(), true);
+  assert.equal(state.projectiles.length, 1);
+  state.powers.skillTime = CONFIG.step / 2;
+  game.update(CONFIG.step);
+  assert.equal(game.currentAction(), 'boost');
 });

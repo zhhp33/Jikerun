@@ -256,6 +256,7 @@ kbd { display: inline-block; padding: 0 4px; border: 1px solid #4c6265; border-r
 .action-button[data-skill="football"] { border-color: #d4eac6; background: #a9cdaa; box-shadow: 0 5px 0 #536f58; }
 .action-button[data-skill="guoguo"], .action-button[data-skill="keke"] { border-color: #fbd8a3; background: #f2b064; box-shadow: 0 5px 0 #9a6b3f; }
 .action-button[data-skill="otter"] { border-color: #dbd5ff; background: #b8b1ed; box-shadow: 0 5px 0 #7066a9; }
+.action-button[data-skill="boost"] { border-color: #d6f0ef; background: #a6d3d3; box-shadow: 0 5px 0 #4f7f80; }
 .jump-cue { position: absolute; display: grid; place-items: center; width: 72px; height: 72px; transform: translate(-50%, -50%); color: #ffdf58; border: 3px solid #ffdf58; border-radius: 50%; background: #18333ae8; box-shadow: 0 0 25px #ffda3b30; }
 .jump-cue > span { position: absolute; inset: -9px; border: 1px solid #ffdf5880; border-radius: 50%; animation: cue-pulse .65s ease-out infinite; }
 .jump-cue > strong { display: grid; place-items: center; width: 100%; height: 100%; margin: 0; padding: 0; font-size: 26px; line-height: 1; text-align: center; letter-spacing: 0; }

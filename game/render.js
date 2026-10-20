@@ -1,5 +1,5 @@
 import { drawHead, drawBoxHead, drawPet, drawJikeStar, drawStore, drawAppPickup, drawPlasticStool, drawFootball, drawXiaoyuzhou } from './sprites.js?v=20261017-35-shengchen';
-import { CONFIG, STOOL_DIMENSIONS } from './engine.js?v=20261017-40-high-ground';
+import { CONFIG, STOOL_DIMENSIONS } from './engine.js?v=20261020-03-box-boost';
 import { cityStyle, drawCity } from './city.js?v=20261016-25-eight-cities';
 
 const W = 720;
@@ -377,6 +377,7 @@ export class Renderer {
     }
     if (event.type === 'land') this.burst(x, FLOOR - 1, 12, '#aec8bb', 'dust');
     if (event.type === 'flight-lift') this.burst(x, y - 6, 9, '#b9d8dd', 'spark');
+    if (event.type === 'boost') this.burst(x - 30, y - 70, 14, '#a6d3d3', 'spark');
     if (event.type === 'flight-land') this.burst(x, FLOOR - 2, 12, '#c4d6c3', 'dust');
     if (event.type === 'xiaoyuzhou-depart') {
       const tilt = playerTilt({ y: event.y, vy: event.vy }, this.elapsed, 'running');
@@ -406,9 +407,9 @@ export class Renderer {
         const pieces = o.type === 'stool' ? clamp(o.count || 1, 1, 3) : Math.max(1, Math.round(o.width / 70));
         for (let i = 0; i < pieces; i++) {
           const fragmentX = o.x - o.width / 2 + o.width * (i + .5) / pieces;
-          this.burst(fragmentX, FLOOR - o.height / 2, Math.ceil((event.method === 'invincible' ? 22 : 19) / pieces), event.method === 'invincible' ? C.gold : (o.type === 'stool' ? '#e3bd63' : '#b3c7bd'), 'debris');
+          this.burst(fragmentX, FLOOR - o.height / 2, Math.ceil((['invincible', 'boost'].includes(event.method) ? 22 : 19) / pieces), event.method === 'boost' ? '#a6d3d3' : event.method === 'invincible' ? C.gold : (o.type === 'stool' ? '#e3bd63' : '#b3c7bd'), 'debris');
         }
-        this.effects.push({ kind: 'ring', x: o.x, y: FLOOR - o.height / 2, age: 0, life: .35, color: event.method === 'invincible' ? C.gold : C.blue });
+        this.effects.push({ kind: 'ring', x: o.x, y: FLOOR - o.height / 2, age: 0, life: .35, color: event.method === 'boost' ? '#a6d3d3' : event.method === 'invincible' ? C.gold : C.blue });
       }
     }
     if (event.type === 'hit') { this.hit = .2; this.burst(s?.player.x || 145, FLOOR - 70, 14, C.gold, 'spark'); }
@@ -634,6 +635,14 @@ export class Renderer {
     const y = FLOOR - p.y;
     const holdingPet = Boolean(this.activeCompanion(state).type);
     ctx.save(); ctx.globalAlpha = .3 * (1 - Math.min(p.y / 400, .6)); ellipse(ctx, x + 5, FLOOR + 3, 65 - p.y * .07, 7, '#0b2528'); ctx.restore();
+    if (state.boost > 0) {
+      ctx.save(); ctx.globalAlpha = .55;
+      for (let i = 0; i < 5; i++) {
+        const lift = 24 + i * 26, sweep = (t * 900 + i * 47) % 70, length = 46 + (i % 2) * 24;
+        line(ctx, [[x - 42 - sweep, y - lift], [x - 42 - sweep - length, y - lift]], i % 2 ? '#a6d3d3' : '#f4f0df', 2.5);
+      }
+      ctx.restore();
+    }
     ctx.save(); ctx.translate(x, y); ctx.rotate(playerTilt(p, t, phase));
     if (p.flying && p.flightStyle === 'xiaoyuzhou') xiaoyuzhouRider(ctx, t, state.powers?.movement === 'xiaoyuzhou' && !p.landing);
     else if (p.flying || state.powers?.movement === 'flight') flightRider(ctx, t, p.vy, p.landing, holdingPet);

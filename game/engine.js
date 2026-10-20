@@ -28,6 +28,9 @@ export const CONFIG = Object.freeze({
   birdSeconds: 8,
   skillSeconds: 10,
   movementSeconds: 10,
+  boostSeconds: 1.5,
+  boostMultiplier: 2,
+  boostCooldown: 0.8,
   highMultiplier: 1.28,
   flightLift: 430,
   flightGravity: 430,
@@ -91,8 +94,10 @@ export function freshState() {
     obstacles: [],
     pickups: [],
     projectiles: [],
-    powers: { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0, shengchen: 0 },
+    powers: { star: 0, bird: 0, skill: null, skillTime: 0, grace: 0, movement: null, movementTime: 0, reminders: 0, shengchen: 0, action: null },
     cooldown: 0,
+    boost: 0,
+    boostCooldown: 0,
     reminderCue: 0,
     reminderTargetId: null,
   };
@@ -357,6 +362,44 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     return true;
   }
 
+  function canBoost() {
+    const { powers } = state;
+    return powers.movement === 'flight' && powers.movementTime > 0 && !state.player.landing;
+  }
+
+  function boost() {
+    if (state.phase !== 'running' || !canBoost() || state.boostCooldown > EPSILON) return false;
+    state.boost = CONFIG.boostSeconds;
+    state.boostCooldown = CONFIG.boostSeconds + CONFIG.boostCooldown;
+    endShengchen();
+    emit('boost', { x: state.player.x, y: state.player.y });
+    return true;
+  }
+
+  /** The shared action button belongs to the most recently collected ability that is still active. */
+  function currentAction() {
+    const { powers } = state;
+    const skill = Boolean(powers.skill && powers.skillTime > 0);
+    const boosting = canBoost();
+    if (powers.action === 'boost' && boosting) return 'boost';
+    if (powers.action === 'skill' && skill) return 'skill';
+    return boosting ? 'boost' : skill ? 'skill' : null;
+  }
+
+  function useAction() {
+    const action = currentAction();
+    if (action === 'boost') return boost();
+    if (action === 'skill') return useSkill();
+    return false;
+  }
+
+  function endBoost() {
+    if (state.boost === 0) return;
+    state.boost = 0;
+    state.powers.grace = Math.max(state.powers.grace, CONFIG.graceSeconds);
+    emit('power-expire', { power: 'boost' });
+  }
+
   function pause() {
     if (!['launch', 'running', 'falling'].includes(state.phase)) return;
     state.pausedFrom = state.phase;
@@ -382,6 +425,8 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     state.powers.grace = Math.max(state.powers.grace, CONFIG.reviveGraceSeconds);
     state.reminderCue = 0;
     state.reminderTargetId = null;
+    state.boost = 0;
+    state.boostCooldown = 0;
     endShengchen();
     bufferedJump = null;
     emit('revive', { x: state.player.x, y: state.player.y });
@@ -404,6 +449,8 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
       if (powers.movement === 'xiaoyuzhou' && pickup.type !== 'xiaoyuzhou') departXiaoyuzhou();
       powers.movement = pickup.type;
       powers.movementTime = CONFIG.movementSeconds;
+      if (pickup.type === 'flight') powers.action = 'boost';
+      else endBoost();
       if (FLIGHT_TYPES.includes(pickup.type)) {
         player.flying = true;
         player.flightStyle = pickup.type;
@@ -416,6 +463,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     } else {
       powers.skill = pickup.type;
       powers.skillTime = CONFIG.skillSeconds;
+      powers.action = 'skill';
       state.cooldown = 0;
     }
     emit('pickup', { pickupType: pickup.type, x: pickup.x, y: pickup.y });
@@ -480,6 +528,11 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
       emit('power-expire', { power: oldMovement });
     }
     state.cooldown = Math.max(0, state.cooldown - dt);
+    state.boostCooldown = Math.max(0, state.boostCooldown - dt);
+    if (state.boost > 0) {
+      state.boost -= dt;
+      if (state.boost < EPSILON || !canBoost()) endBoost();
+    }
   }
 
   function generateWorld() {
@@ -544,7 +597,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
 
   function updateReminder() {
     const { player, powers } = state;
-    if (!powers.reminders || !player.onGround || player.flying || player.landing) return;
+    if (!powers.reminders || !player.onGround || player.flying || player.landing || state.boost > 0) return;
     const target = state.obstacles
       .filter((item) => item.x + item.width / 2 >= player.x - CONFIG.playerWidth / 2 && !remindedObstacles.has(item.id))
       .sort((a, b) => a.x - b.x)[0];
@@ -582,7 +635,7 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     const { player, powers } = state;
     let target = shengchenTarget();
     if (!target && powers.shengchen > 0 && player.onGround
-      && !player.flying && !player.landing && powers.star <= 0 && powers.grace <= 0) {
+      && !player.flying && !player.landing && powers.star <= 0 && powers.grace <= 0 && state.boost <= 0) {
       target = state.obstacles
         .filter(item => item.x - item.width / 2 >= player.x + CONFIG.playerWidth / 2)
         .sort((a, b) => a.x - a.width / 2 - (b.x - b.width / 2))[0];
@@ -628,7 +681,8 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     runningTime += dt;
     state.runTime = runningTime;
     state.speed = worldSpeedAt(runningTime);
-    const travel = worldDistanceAt(runningTime) - worldDistanceAt(previousTime);
+    // Boosting only stretches travel; state.speed stays the base pace so obstacle planning is unchanged.
+    const travel = (worldDistanceAt(runningTime) - worldDistanceAt(previousTime)) * (state.boost > 0 ? CONFIG.boostMultiplier : 1);
     state.distance += travel;
     updatePowers(dt);
     flushBufferedJump();
@@ -699,7 +753,8 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
 
     for (const obstacle of [...state.obstacles]) {
       if (!playerHitsObstacle(player, obstacle)) continue;
-      if (state.powers.star > 0 || state.powers.grace > 0 || player.landing) destroy(obstacle, 'invincible');
+      if (state.boost > 0) destroy(obstacle, 'boost');
+      else if (state.powers.star > 0 || state.powers.grace > 0 || player.landing) destroy(obstacle, 'invincible');
       else {
         endShengchen();
         state.phase = 'falling';
@@ -735,6 +790,9 @@ export function createGame({ random = Math.random, onEvent = () => {} } = {}) {
     action: jump,
     jump,
     useSkill,
+    boost,
+    useAction,
+    currentAction,
     update,
     pause,
     resume,

@@ -1,6 +1,6 @@
 import { createGame, CONFIG } from './engine.js?v=20261020-03-box-boost';
 import { Renderer } from './render.js?v=20261020-03-box-boost';
-import { GameAudio } from './audio.js?v=20261016-17-stool-c';
+import { GameAudio } from './audio.js?v=20261020-04-bgm';
 import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261017-35-shengchen';
 import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.js?v=20261016-25-eight-cities';
 
@@ -117,8 +117,10 @@ const game = createGame({ onEvent(event) {
   renderer.handleEvent(event);
   if (event.type === 'start') {
     audio.stop();
+    audio.stopMusic();
     beginCityRun();
     audio.play('start');
+    audio.startMusic();
     toastTime = 0;
     previousBest = best;
     ui.toast.hidden = true;
@@ -135,6 +137,7 @@ const game = createGame({ onEvent(event) {
   } else if (event.type === 'revive') {
     audio.stop();
     audio.play('start');
+    audio.startMusic();
     showToast('原地复活！得分保留，继续开溜。');
   } else if (event.type === 'pickup') {
     audio.play('pickup');
@@ -145,6 +148,7 @@ const game = createGame({ onEvent(event) {
     audio.play('coin');
   } else if (event.type === 'pause') {
     audio.stop();
+    audio.stopMusic();
   } else if (event.type === 'jump-cue') {
     audio.play('cue');
   } else if (event.type === 'shengchen-start') {
@@ -158,7 +162,7 @@ const game = createGame({ onEvent(event) {
     audio.play('land');
   } else if (['jump', 'land', 'shoot', 'hit', 'gameover'].includes(event.type)) {
     if (['jump', 'hit', 'gameover'].includes(event.type)) playHintTime = 0;
-    if (event.type === 'hit') { toastTime = 0; ui.toast.hidden = true; }
+    if (event.type === 'hit') { toastTime = 0; ui.toast.hidden = true; audio.stopMusic(); }
     audio.play(event.type);
   }
 } });
@@ -199,6 +203,7 @@ function resume() {
   accumulator = 0;
   lastFrame = performance.now();
   game.resume();
+  if (game.state.phase !== 'paused') audio.startMusic();
   updateUI();
   ui['game-frame'].focus({ preventScroll: true });
 }
@@ -232,6 +237,7 @@ ui['sound-button'].addEventListener('click', () => {
   muted = !muted;
   writeStorage('jike-run-muted', muted);
   audio.setEnabled(!muted);
+  if (!muted && ['launch', 'running'].includes(game.state.phase)) audio.startMusic();
   updateSoundButton();
 });
 ui['pause-button'].addEventListener('click', () => {
@@ -286,6 +292,7 @@ function backgroundPause() {
   game.pause();
   updateUI();
   audio.stop();
+  audio.stopMusic();
   accumulator = 0;
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) backgroundPause(); });

@@ -39,6 +39,7 @@ export class GameAudio {
     this.epoch = 0;
     this.voices = new Set();
     this.music = null;
+    this.songStep = 0;
   }
 
   prepare() {
@@ -95,7 +96,7 @@ export class GameAudio {
     feedback.connect(echo);
     echo.connect(wet);
     wet.connect(bus);
-    const music = this.music = { bus, filter, echo, feedback, wet, step: 0, next: 0, timer: 0 };
+    const music = this.music = { bus, filter, echo, feedback, wet, step: this.songStep, next: 0, timer: 0 };
     if (!this.noise) {
       this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       this.noise.getChannelData(0).forEach((_, i, data) => { data[i] = Math.random() * 2 - 1; });
@@ -120,6 +121,8 @@ export class GameAudio {
     if (!music) return;
     this.music = null;
     clearInterval(music.timer);
+    // Resume from the start of the bar that was playing, so the chord lands cleanly.
+    this.songStep = Math.floor(music.step / 8) * 8 % (SONG.length * 8);
     const now = this.context.currentTime;
     music.bus.gain.cancelScheduledValues(now);
     music.bus.gain.setTargetAtTime(0.0001, now, 0.08);

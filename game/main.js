@@ -1,6 +1,6 @@
 import { createGame, CONFIG } from './engine.js?v=20261020-03-box-boost';
 import { Renderer } from './render.js?v=20261020-03-box-boost';
-import { GameAudio } from './audio.js?v=20261020-05-bgm-long';
+import { GameAudio } from './audio.js?v=20261020-06-bgm-loop';
 import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261017-35-shengchen';
 import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.js?v=20261016-25-eight-cities';
 
@@ -117,7 +117,6 @@ const game = createGame({ onEvent(event) {
   renderer.handleEvent(event);
   if (event.type === 'start') {
     audio.stop();
-    audio.stopMusic();
     beginCityRun();
     audio.play('start');
     audio.startMusic();
@@ -162,7 +161,7 @@ const game = createGame({ onEvent(event) {
     audio.play('land');
   } else if (['jump', 'land', 'shoot', 'hit', 'gameover'].includes(event.type)) {
     if (['jump', 'hit', 'gameover'].includes(event.type)) playHintTime = 0;
-    if (event.type === 'hit') { toastTime = 0; ui.toast.hidden = true; audio.stopMusic(); }
+    if (event.type === 'hit') { toastTime = 0; ui.toast.hidden = true; }
     audio.play(event.type);
   }
 } });
@@ -237,7 +236,7 @@ ui['sound-button'].addEventListener('click', () => {
   muted = !muted;
   writeStorage('jike-run-muted', muted);
   audio.setEnabled(!muted);
-  if (!muted && ['launch', 'running'].includes(game.state.phase)) audio.startMusic();
+  if (!muted && !['ready', 'paused'].includes(game.state.phase)) audio.startMusic();
   updateSoundButton();
 });
 ui['pause-button'].addEventListener('click', () => {
@@ -297,6 +296,8 @@ function backgroundPause() {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) backgroundPause(); });
 window.addEventListener('blur', backgroundPause);
+// The result screen never pauses, so bring its music back when the player returns.
+window.addEventListener('focus', () => { if (!muted && game.state.phase === 'gameover') audio.startMusic(); });
 let orientation = window.matchMedia('(orientation: landscape)').matches;
 window.addEventListener('resize', () => {
   const next = window.matchMedia('(orientation: landscape)').matches;

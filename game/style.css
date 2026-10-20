@@ -301,7 +301,7 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, -7px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
 @media (min-width: 601px), (orientation: landscape) {
-  .app-shell { width: min(480px, 100%, calc((100vh - 76px) * .68)); width: min(480px, 100%, calc((100dvh - 76px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * .68)); padding: 8px 0 12px; }
+  .app-shell { width: min(720px, 100%, calc((100vh - 76px) * .68)); width: min(720px, 100%, calc((100dvh - 76px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * .68)); padding: 8px 0 12px; }
   .site-header { padding: 0 5px; margin-bottom: 8px; }
   .game-frame { border: 1px solid #38515a; border-radius: 22px; box-shadow: 0 20px 65px #0003; }
 }
@@ -311,6 +311,13 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
   #start-button { top: 23%; }
   .welcome p { margin-bottom: 16px; }
   .start-hint { margin-top: 12px; }
+}
+
+/* Wide desktops: park the header in the empty side space so the frame can use the full height. Keep the .68 ratio — it fixes the world's height. */
+@media (min-width: 900px) and (min-aspect-ratio: 5/4) and (min-height: 600px) {
+  .app-shell { width: min(720px, 100%, calc((100vh - 24px) * .68)); width: min(720px, 100%, calc((100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)) * .68)); padding: 12px 0; }
+  .site-header { position: fixed; top: calc(16px + env(safe-area-inset-top, 0px)); left: calc(24px + env(safe-area-inset-left, 0px)); right: calc(24px + env(safe-area-inset-right, 0px)); z-index: 5; margin: 0; padding: 0; pointer-events: none; }
+  .site-header > * { pointer-events: auto; }
 }
 
 @media (max-height: 640px) {

@@ -1,4 +1,36 @@
 // Tiny synthesized sounds keep the game self-contained and load immediately.
+// Background song: 32 bars at 112 BPM (~69 s) in four sections, then it loops.
+const _ = null;
+const BEAT = 60 / 112;
+const midi = (n) => 440 * 2 ** ((n - 69) / 12);
+
+// [bass root, pad notes]
+const C = [48, [60, 64, 67]], G = [43, [59, 62, 67]], Am = [45, [60, 64, 69]], F = [41, [60, 65, 69]], Em = [40, [59, 64, 67]], Dm = [38, [62, 65, 69]];
+
+// Each bar: chord + 8 melody eighths (midi, '-' holds the previous note, _ rests).
+const SECTIONS = [
+  { name: 'intro', kick: 'none', bars: [[C], [G], [Am], [F], [C], [G], [Am], [F]] },
+  { name: 'verse', kick: 'four', bars: [
+    [Am, [76, '-', 74, 72, '-', 69, 72, '-']], [F, [72, '-', 69, _, 65, _, 67, 69]],
+    [C, [67, '-', 72, _, 76, '-', 74, 72]], [G, [74, '-', '-', '-', 71, _, 67, _]],
+    [Am, [76, '-', 79, 76, '-', 74, 72, '-']], [F, [72, '-', 74, _, 76, _, 77, '-']],
+    [C, [79, '-', 76, _, 72, _, 74, 76]], [G, [74, '-', '-', '-', '-', '-', _, _]],
+  ] },
+  { name: 'bridge', kick: 'half', bars: [
+    [F, [69, _, 72, _, 77, '-', 76, 74]], [G, [74, '-', 71, _, 67, '-', '-', _]],
+    [Em, [71, _, 67, _, 64, _, 67, 71]], [Am, [72, '-', '-', '-', 76, '-', '-', _]],
+    [Dm, [74, _, 77, _, 81, '-', 79, 77]], [G, [79, '-', 74, _, 71, '-', 74, _]],
+    [C, [76, '-', '-', '-', 72, '-', '-', '-']], [G, [_, _, _, _, 74, 76, 77, 79]],
+  ] },
+  { name: 'chorus', kick: 'four', bars: [
+    [C, [84, '-', 79, _, 76, '-', 79, _]], [G, [83, '-', 79, _, 74, '-', 71, _]],
+    [Am, [81, '-', 76, _, 72, '-', 76, 79]], [F, [77, '-', 76, 74, 72, '-', '-', _]],
+    [C, [84, '-', 79, _, 76, '-', 79, 81]], [G, [83, '-', 86, '-', 83, _, 79, _]],
+    [Am, [81, '-', 79, 76, 77, '-', 74, _]], [F, [72, '-', '-', '-', _, _, _, _]],
+  ] },
+];
+const SONG = SECTIONS.flatMap((section) => section.bars.map(([chord, melody]) => ({ section, chord, melody })));
+
 export class GameAudio {
   constructor(enabled = true) {
     this.enabled = enabled;
@@ -42,17 +74,28 @@ export class GameAudio {
     else this.prepare();
   }
 
-  // Background loop: 112 BPM, C – G – Am – F, scheduled a little ahead so timer jitter never shows.
+  // Notes are scheduled a little ahead so timer jitter never shows.
   startMusic() {
     if (!this.enabled || !this.context || this.music) return;
     const ctx = this.context;
     const bus = ctx.createGain();
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = 2600;
+    filter.frequency.value = 3200;
     bus.connect(filter);
     filter.connect(this.master);
-    const music = this.music = { bus, filter, step: 0, next: 0, timer: 0 };
+    // One shared delay gives the lead a little room without a reverb impulse.
+    const echo = ctx.createDelay(1);
+    const feedback = ctx.createGain();
+    const wet = ctx.createGain();
+    echo.delayTime.value = BEAT * 0.75;
+    feedback.gain.value = 0.32;
+    wet.gain.value = 0.35;
+    echo.connect(feedback);
+    feedback.connect(echo);
+    echo.connect(wet);
+    wet.connect(bus);
+    const music = this.music = { bus, filter, echo, feedback, wet, step: 0, next: 0, timer: 0 };
     if (!this.noise) {
       this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       this.noise.getChannelData(0).forEach((_, i, data) => { data[i] = Math.random() * 2 - 1; });
@@ -80,17 +123,17 @@ export class GameAudio {
     const now = this.context.currentTime;
     music.bus.gain.cancelScheduledValues(now);
     music.bus.gain.setTargetAtTime(0.0001, now, 0.08);
-    setTimeout(() => { music.bus.disconnect(); music.filter.disconnect(); }, 600);
+    setTimeout(() => { for (const node of [music.bus, music.filter, music.echo, music.feedback, music.wet]) node.disconnect(); }, 600);
   }
 
   musicStep(music) {
     const ctx = this.context;
-    const beat = 60 / 112;
     const t = music.next;
-    const i = music.step % 8;
-    const midi = (n) => 440 * 2 ** ((n - 69) / 12);
-    const [root, ...notes] = [[48, 60, 64, 67], [43, 59, 62, 67], [45, 60, 64, 69], [41, 60, 65, 69]][Math.floor(music.step / 8) % 4];
-    const tone = (frequency, duration, type, volume, attack = 0.01) => {
+    const step = music.step;
+    const bar = Math.floor(step / 8) % SONG.length;
+    const { section, chord: [root, pad], melody } = SONG[bar];
+    const i = step % 8;
+    const tone = (frequency, duration, type, volume, attack = 0.01, dest = music.bus) => {
       const oscillator = ctx.createOscillator();
       const gain = ctx.createGain();
       oscillator.type = type;
@@ -99,43 +142,71 @@ export class GameAudio {
       gain.gain.exponentialRampToValueAtTime(volume, t + attack);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + duration);
       oscillator.connect(gain);
-      gain.connect(music.bus);
+      gain.connect(dest);
       oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
       oscillator.start(t);
       oscillator.stop(t + duration + 0.02);
     };
-    if (i === 0) for (const n of notes) tone(midi(n), beat * 3.9, 'triangle', 0.035, 0.25);
-    tone(midi(root + (i % 2 ? 12 : 0)), beat * 0.45, 'triangle', 0.11);
-    tone(midi([...notes, notes[1] + 12][i % 4] + 12), beat * 0.4, 'square', 0.012);
-    const hat = ctx.createBufferSource();
-    const highpass = ctx.createBiquadFilter();
-    const hatGain = ctx.createGain();
-    hat.buffer = this.noise;
-    highpass.type = 'highpass';
-    highpass.frequency.value = 7000;
-    hatGain.gain.setValueAtTime(0.05, t + beat / 4);
-    hatGain.gain.exponentialRampToValueAtTime(0.0001, t + beat / 4 + 0.05);
-    hat.connect(highpass);
-    highpass.connect(hatGain);
-    hatGain.connect(music.bus);
-    hat.onended = () => { hat.disconnect(); highpass.disconnect(); hatGain.disconnect(); };
-    hat.start(t + beat / 4);
-    hat.stop(t + beat / 4 + 0.06);
-    if (i % 2 === 0) {
-      const kick = ctx.createOscillator();
-      const kickGain = ctx.createGain();
-      kick.frequency.setValueAtTime(130, t);
-      kick.frequency.exponentialRampToValueAtTime(42, t + 0.14);
-      kickGain.gain.setValueAtTime(0.32, t);
-      kickGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
-      kick.connect(kickGain);
-      kickGain.connect(music.bus);
-      kick.onended = () => { kick.disconnect(); kickGain.disconnect(); };
-      kick.start(t);
-      kick.stop(t + 0.22);
+    const noiseHit = (at, frequency, volume, length, type = 'highpass') => {
+      const source = ctx.createBufferSource();
+      const filter = ctx.createBiquadFilter();
+      const gain = ctx.createGain();
+      source.buffer = this.noise;
+      filter.type = type;
+      filter.frequency.value = frequency;
+      gain.gain.setValueAtTime(volume, at);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + length);
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(music.bus);
+      source.onended = () => { source.disconnect(); filter.disconnect(); gain.disconnect(); };
+      source.start(at, Math.random() * 0.5);
+      source.stop(at + length + 0.02);
+    };
+    const kick = () => {
+      const oscillator = ctx.createOscillator();
+      const gain = ctx.createGain();
+      oscillator.frequency.setValueAtTime(130, t);
+      oscillator.frequency.exponentialRampToValueAtTime(42, t + 0.14);
+      gain.gain.setValueAtTime(0.32, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.2);
+      oscillator.connect(gain);
+      gain.connect(music.bus);
+      oscillator.onended = () => { oscillator.disconnect(); gain.disconnect(); };
+      oscillator.start(t);
+      oscillator.stop(t + 0.22);
+    };
+    const intro = section.name === 'intro';
+    const bridge = section.name === 'bridge';
+    const chorus = section.name === 'chorus';
+
+    // Pad: one soft chord per bar, brighter in the chorus.
+    if (i === 0) for (const n of pad) tone(midi(n), BEAT * 3.9, 'triangle', chorus ? 0.04 : 0.032, 0.3);
+    if (i === 0 && chorus) tone(midi(pad[2] + 12), BEAT * 3.9, 'sine', 0.018, 0.3);
+    // Bass: octave bounce; the bridge lays back to quarter notes.
+    if (!bridge || i % 2 === 0) tone(midi(root + (i % 2 ? 12 : 0)), BEAT * (bridge ? 0.9 : 0.45), 'triangle', intro && bar < 4 ? 0.07 : 0.11);
+    // Arpeggio pluck, an octave up in the bridge for lift.
+    const arp = [...pad, pad[1] + 12];
+    if (!intro || bar >= 2) tone(midi(arp[(i * 3) % 4] + (bridge ? 24 : 12)), BEAT * 0.38, 'square', bridge ? 0.008 : 0.011);
+    // Lead melody with echo.
+    const note = melody?.[i];
+    if (typeof note === 'number') {
+      let hold = 1;
+      while (melody[i + hold] === '-') hold++;
+      const length = BEAT * 0.5 * hold * 0.92;
+      tone(midi(note), length, 'triangle', 0.075, 0.02);
+      tone(midi(note), length, 'sine', 0.035, 0.02, music.echo);
+      tone(midi(note + 12), length * 0.7, 'sine', 0.012, 0.02);
     }
+    // Drums, with a little fill into each new section.
+    if (!(intro && bar < 4)) noiseHit(t + BEAT / 4, 7000, chorus ? 0.06 : 0.045, 0.05);
+    if (section.kick === 'four' && i % 2 === 0) kick();
+    if (section.kick === 'half' && i % 4 === 0) kick();
+    if (intro && bar >= 4 && i % 4 === 0) kick();
+    if (section.kick === 'four' && (i === 2 || i === 6)) noiseHit(t, 1800, 0.07, 0.12, 'bandpass');
+    if (bar % 8 === 7 && i >= 6) { noiseHit(t, 2200, 0.06, 0.08, 'bandpass'); noiseHit(t + BEAT / 4, 2200, 0.07, 0.08, 'bandpass'); }
     music.step += 1;
-    music.next += beat / 2;
+    music.next += BEAT / 2;
   }
 
   note(frequency, duration = 0.12, delay = 0, type = 'sine', volume = 0.25, end = frequency) {

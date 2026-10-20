@@ -1,6 +1,6 @@
 import { createGame, CONFIG } from './engine.js?v=20261020-03-box-boost';
 import { Renderer } from './render.js?v=20261020-03-box-boost';
-import { GameAudio } from './audio.js?v=20261020-04-bgm';
+import { GameAudio } from './audio.js?v=20261020-05-bgm-long';
 import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261017-35-shengchen';
 import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.js?v=20261016-25-eight-cities';
 

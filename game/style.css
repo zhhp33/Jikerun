@@ -272,6 +272,13 @@ kbd { display: inline-block; padding: 0 4px; border: 1px solid #4c6265; border-r
 .panel-symbol { display: block; margin-bottom: 15px; color: var(--yellow); font-family: Arial, sans-serif; font-size: 31px; font-weight: 700; }
 .pause-panel p { margin-bottom: 23px; }
 .result-panel { top: 11%; left: 7%; right: 7%; text-align: center; }
+.result-heading { position: relative; display: inline-block; }
+.record-burst { position: absolute; left: 100%; top: -.55em; display: none; margin-left: .15em; color: var(--yellow); font-size: .5em; font-weight: 800; font-style: italic; line-height: 1.08; letter-spacing: .5px; text-align: left; white-space: nowrap; text-shadow: 0 2px 0 #10221f, 0 0 12px rgba(255, 218, 59, .5); rotate: 12deg; transform-origin: 0 100%; }
+.record-burst::before { content: "✦"; position: absolute; left: -.85em; top: -.35em; font-size: .7em; font-style: normal; animation: record-twinkle 1.2s ease-in-out .8s infinite; }
+.result-panel.new-record .record-burst { display: block; animation: record-pop .55s cubic-bezier(.2, 1.7, .4, 1) .3s both, record-wobble 2.2s ease-in-out .9s infinite; }
+@keyframes record-pop { from { opacity: 0; scale: 0; rotate: -20deg; } to { opacity: 1; scale: 1; rotate: 12deg; } }
+@keyframes record-wobble { 0%, 100% { rotate: 12deg; scale: 1; } 50% { rotate: 5deg; scale: 1.08; } }
+@keyframes record-twinkle { 0%, 100% { opacity: 1; scale: 1; } 50% { opacity: .35; scale: .6; } }
 .result-panel .eyebrow { justify-content: center; color: #b3c5b7; font-size: clamp(7px, 2cqw, 9px); letter-spacing: 1.3px; }
 .result-score { display: flex; justify-content: center; align-items: baseline; gap: 11px; margin: 16px 0 2px; }
 .result-score strong { color: var(--yellow); font-family: "Avenir Next", ui-monospace, monospace; font-size: clamp(45px, 13cqw, 62px); font-weight: 700; line-height: 1.1; letter-spacing: -2px; font-variant-numeric: tabular-nums; }

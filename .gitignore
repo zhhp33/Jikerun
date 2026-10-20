@@ -3,7 +3,8 @@
 !/.gitignore
 !/README.md
 !/game/
-/game/previews/
+!/docs/
+/previews/
 
 .DS_Store
 ._*

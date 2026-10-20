@@ -8,7 +8,7 @@ const $ = (id) => document.getElementById(id);
 const ui = Object.fromEntries([
   'game-frame', 'game-canvas', 'welcome', 'hero-sticker', 'ready-footer',
   'hud', 'score', 'distance', 'best', 'toast', 'power-strip', 'jump-cue', 'action-dock', 'action-button',
-  'action-icon', 'action-label', 'action-key-hint', 'play-hint', 'pause-panel', 'result-panel', 'final-score',
+  'action-icon', 'action-label', 'action-key-hint', 'play-hint', 'pause-panel', 'result-panel', 'result-title', 'final-score',
   'final-distance', 'final-best', 'result-eyebrow', 'result-caption', 'sound-button', 'pause-button',
   'coin-badge', 'coin-count', 'revive-panel', 'revive-count', 'shengchen-cue',
 ].map((id) => [id, $(id)]));
@@ -286,8 +286,6 @@ function backgroundPause() {
   game.pause();
   updateUI();
   audio.stop();
- 
-  updateStyleChoices();
   accumulator = 0;
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) backgroundPause(); });
@@ -301,11 +299,11 @@ function updatePowers() {
   const p = game.state.powers;
   const powers = [];
   if (p.shengchen > 0 || game.state.shengchenTargetId !== null) powers.push({ id: 'shengchen', image: './assets/shengchen.webp', label: '生辰·续一秒', time: p.shengchen, max: CONFIG.shengchenCharges, counted: true });
-  if (p.star > 0) powers.push({ id: 'star', image: './assets/Jellow.svg', label: 'Jellow·星星护体', time: p.star, max: 6 });
-  if (p.bird > 0) powers.push({ id: 'bird', image: './assets/kuainiaofanli.webp', label: '快鸟返利·有钱花', time: p.bird, max: 8 });
+  if (p.star > 0) powers.push({ id: 'star', image: './assets/Jellow.svg', label: 'Jellow·星星护体', time: p.star, max: CONFIG.starSeconds });
+  if (p.bird > 0) powers.push({ id: 'bird', image: './assets/kuainiaofanli.webp', label: '快鸟返利·有钱花', time: p.bird, max: CONFIG.birdSeconds });
   if (p.skill && p.skillTime > 0) {
     const labels = { football: '指尖足球', guoguo: '果果·消除障碍', keke: '科科·消除障碍', otter: 'Otterlife·消除压力' };
-    powers.push({ id: p.skill, art: p.skill, image: p.skill === 'otter' ? './assets/otterlife.webp' : null, label: labels[p.skill], time: p.skillTime, max: 10 });
+    powers.push({ id: p.skill, art: p.skill, image: p.skill === 'otter' ? './assets/otterlife.webp' : null, label: labels[p.skill], time: p.skillTime, max: CONFIG.skillSeconds });
   }
   if (p.movement && p.movementTime > 0) {
     const labels = { high: '一罐·增高剂', double: '橙·好事成双', flight: '小组件盒子·起飞', xiaoyuzhou: '小宇宙·起飞' };
@@ -379,8 +377,10 @@ function updateUI() {
       ui['final-distance'].textContent = `${Math.floor(state.distance / 10)} m`;
       ui['final-best'].textContent = best;
       const record = state.score > previousBest && state.score > 0;
+      ui['result-panel'].classList.toggle('new-record', record);
+      ui['result-title'].textContent = record ? '新纪录' : '这班，先上到这';
+      ui['result-caption'].hidden = record;
       ui['result-eyebrow'].textContent = record ? 'A LITTLE FALL. A NEW RECORD.' : 'MISSION: TEMPORARILY FAILED';
-      ui['result-caption'].textContent = record ? '虽然摔了，但创造了新纪录！' : '椅子没事，人也还行';
       writeStorage('jike-run-best', best);
     }
   }

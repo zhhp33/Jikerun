@@ -1,5 +1,5 @@
 import { drawHead, drawBoxHead, drawPet, drawJikeStar, drawStore, drawAppPickup, drawPlasticStool, drawFootball, drawXiaoyuzhou } from './sprites.js?v=20261017-35-shengchen';
-import { CONFIG, STOOL_DIMENSIONS } from './engine.js?v=20261017-37-shengchen-3s';
+import { CONFIG, STOOL_DIMENSIONS } from './engine.js?v=20261017-40-high-ground';
 import { cityStyle, drawCity } from './city.js?v=20261016-25-eight-cities';
 
 const W = 720;

@@ -1,1 +1,1 @@
-{"name":"jike-run","private":true,"type":"module","scripts":{"test":"node --test engine.test.js city.test.js","start":"python3 serve.py"}}
+{"name":"jike-run","private":true,"type":"module","engines":{"node":">=18"},"scripts":{"test":"node --test engine.test.js city.test.js","start":"python3 serve.py"}}

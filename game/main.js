@@ -6,7 +6,7 @@ import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.j
 
 const $ = (id) => document.getElementById(id);
 const ui = Object.fromEntries([
-  'game-frame', 'game-canvas', 'welcome', 'hero-sticker', 'ready-footer',
+  'game-frame', 'game-canvas', 'welcome', 'hero-sticker', 'ready-footer', 'ready-links',
   'hud', 'score', 'distance', 'best', 'toast', 'power-strip', 'jump-cue', 'action-dock', 'action-button',
   'action-icon', 'action-label', 'action-key-hint', 'play-hint', 'pause-panel', 'result-panel', 'result-title', 'final-score',
   'final-distance', 'final-best', 'result-eyebrow', 'result-caption', 'sound-button', 'pause-button',
@@ -266,7 +266,7 @@ document.addEventListener('pointerdown', (event) => {
 });
 
 document.addEventListener('keydown', (event) => {
-  if ($('style-panel').open || (event.code === 'Space' && event.target.closest('button'))) return;
+  if ($('style-panel').open || (event.code === 'Space' && event.target.closest('button,a'))) return;
   if (event.ctrlKey || event.metaKey || event.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName)) return;
   touchControls = false;
   updateControlCopy();
@@ -283,7 +283,7 @@ document.addEventListener('keydown', (event) => {
     event.preventDefault();
     if (event.repeat) return;
     skillAction();
-  } else if (event.code === 'Enter' && !event.target.closest('button')) {
+  } else if (event.code === 'Enter' && !event.target.closest('button,a')) {
     if (['ready', 'gameover', 'paused'].includes(game.state.phase)) { event.preventDefault(); jumpAction(); }
   }
 });
@@ -369,7 +369,7 @@ function updateUI() {
   if (state.score > best) { best = state.score; }
   if (state.phase !== lastUIPhase) {
     lastUIPhase = state.phase;
-    for (const id of ['welcome', 'hero-sticker', 'ready-footer']) ui[id].hidden = !ready;
+    for (const id of ['welcome', 'hero-sticker', 'ready-footer', 'ready-links']) ui[id].hidden = !ready;
     ui.hud.hidden = ready || (finished && !canRevive);
     ui['pause-panel'].hidden = !paused;
     ui['result-panel'].hidden = !(finished && state.jicoins === 0);

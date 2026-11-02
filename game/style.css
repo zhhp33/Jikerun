@@ -434,3 +434,8 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; transition-duration: .001ms !important; }
 }
+
+.ready-footer { bottom: 28px; }
+.ready-links { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: center; }
+.ready-links a { padding: 8px 8px 7px; color: #d8dcc4; font-size: 11px; line-height: 1.4; text-decoration: underline; text-underline-offset: 2px; pointer-events: auto; }
+.ready-links a:hover { color: #fff; }

@@ -293,6 +293,10 @@ kbd { display: inline-block; padding: 0 4px; border: 1px solid #4c6265; border-r
 .revive-panel h2 { margin: 20px 0 9px; font-size: clamp(16px, 5.5cqw, 26px); }
 .revive-panel p { margin: 0 0 22px; color: #c9d4c3; }
 .revive-panel .primary-button { min-width: 65%; justify-content: center; }
+.result-actions { display: flex; justify-content: center; gap: 12px; }
+.share-button { display: inline-flex; align-items: center; justify-content: center; min-height: 47px; padding: 0 21px; border: 0; border-radius: 12px; color: var(--yellow); background: #102c34cc; box-shadow: inset 0 0 0 1.5px #ffda3b99, 0 4px 0 #ffda3b40; font-size: clamp(12px, 3.1cqw, 15px); font-weight: 800; letter-spacing: .8px; transition: background .15s, transform .15s, box-shadow .15s; }
+.share-button:hover { background: #1a3b44; }
+.share-button:active { transform: translateY(3px); box-shadow: inset 0 0 0 1.5px #ffda3b99, 0 1px 0 #ffda3b40; }
 .restart-hint { margin-top: 16px; color: #8ba5a7; font-size: clamp(9px, 2.3cqw, 11px); letter-spacing: .3px; }
 .paused .power-strip, .paused .game-toast { opacity: .3; }
 .game-frame:fullscreen { width: 100%; height: 100%; border: 0; border-radius: 0; }
@@ -386,6 +390,8 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
   .result-score > span { font-size: 6px; }
   .result-stats { gap: 10px; margin: 6px 0 10px; font-size: 5.7px; }
   .result-stats b { margin-left: 3px; }
+  .result-actions { gap: 6px; }
+  .share-button { min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 4.6cqw; box-shadow: inset 0 0 0 1px #ffda3b99, 0 3px 0 #ffda3b40; }
   .restart-hint { margin-top: 9px; font-size: 5.5px; letter-spacing: 0; }
   .pause-panel { padding: 13px 8px 17px; border-radius: 12px; }
   .pause-panel .eyebrow { font-size: 4.5px; letter-spacing: .5px; }
@@ -412,7 +418,7 @@ noscript { position: fixed; top: 50%; left: 5%; right: 5%; padding: 20px; color:
   .result-score { margin: 8px 0 0; }
   .result-score strong { font-size: 38px; }
   .result-stats { margin: 7px 0 12px; font-size: 10px; }
-  .result-panel .primary-button { min-height: 44px; }
+  .result-panel .primary-button, .share-button { min-height: 44px; }
   .ready-footer { bottom: 3.3%; font-size: 8px; }
 }
 

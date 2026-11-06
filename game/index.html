@@ -7,8 +7,8 @@
     <meta name="description" content="蹬上台阶，坐着转椅开溜。跳跃、飞行，抱着猫猫和水獭去星空冒险。" />
     <title>即刻开溜 · Jike Run</title>
     <link rel="icon" type="image/svg+xml" href="./assets/logo.svg?v=20261016-17-stool-c" />
-    <link rel="stylesheet" href="./style.css?v=20261102-01-ready-links" />
-    <script type="module" src="./main.js?v=20261102-01-ready-links"></script>
+    <link rel="stylesheet" href="./style.css?v=20261106-05-share" />
+    <script type="module" src="./main.js?v=20261106-05-share"></script>
   </head>
   <body>
     <main class="app-shell">
@@ -69,7 +69,10 @@
               <p id="result-caption">椅子没事，人也还行</p>
               <div class="result-score"><strong id="final-score">0</strong><span>本局得分</span></div>
               <div class="result-stats"><span>滑行 <b id="final-distance">0 m</b></span><span>最佳 <b id="final-best">0</b></span></div>
-              <button id="restart-button" class="primary-button" type="button">再试一把 <span aria-hidden="true">↻</span></button>
+              <div class="result-actions">
+                <button id="restart-button" class="primary-button" type="button">再试一把 <span aria-hidden="true">↻</span></button>
+                <button id="share-button" class="share-button" type="button" hidden>分享</button>
+              </div>
             </section>
 
             <section id="revive-panel" class="revive-panel overlay-panel" aria-labelledby="revive-title" hidden>

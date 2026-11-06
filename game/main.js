@@ -3,6 +3,7 @@ import { Renderer } from './render.js?v=20261020-03-box-boost';
 import { GameAudio } from './audio.js?v=20261020-06-bgm-loop';
 import { drawAppPickup, drawPetAvatar } from './sprites.js?v=20261017-35-shengchen';
 import { CITY_STYLES, cityStyle, drawCityPreview, chooseRunCity } from './city.js?v=20261016-25-eight-cities';
+import { prepareShareCard, shareCard } from './share.js?v=20261106-05-share';
 
 const $ = (id) => document.getElementById(id);
 const ui = Object.fromEntries([
@@ -10,7 +11,7 @@ const ui = Object.fromEntries([
   'hud', 'score', 'distance', 'best', 'toast', 'power-strip', 'jump-cue', 'action-dock', 'action-button',
   'action-icon', 'action-label', 'action-key-hint', 'play-hint', 'pause-panel', 'result-panel', 'result-title', 'final-score',
   'final-distance', 'final-best', 'result-eyebrow', 'result-caption', 'sound-button', 'pause-button',
-  'coin-badge', 'coin-count', 'revive-panel', 'revive-count', 'shengchen-cue',
+  'coin-badge', 'coin-count', 'revive-panel', 'revive-count', 'shengchen-cue', 'share-button',
 ].map((id) => [id, $(id)]));
 
 function readStorage(key, fallback) {
@@ -30,6 +31,7 @@ let touchControls = window.matchMedia('(pointer: coarse)').matches || (navigator
 let firstHintAvailable = readStorage('jike-run-controls-seen', 'false') !== 'true';
 let hintPending = false;
 let playHintTime = 0;
+let sharePending = null;
 let cityMode = readStorage('jike-run-city-mode', 'auto') === 'fixed' ? 'fixed' : 'auto';
 let fixedCity = cityStyle(readStorage('jike-run-city', 'shanghai')).id;
 let nextCity = cityStyle(readStorage('jike-run-next-city', 'shanghai')).id;
@@ -232,6 +234,12 @@ $('start-button').addEventListener('click', start);
 $('restart-button').addEventListener('click', start);
 $('revive-button').addEventListener('click', revive);
 $('resume-button').addEventListener('click', resume);
+ui['share-button'].addEventListener('click', async () => {
+  if (!sharePending) return;
+  const result = await shareCard(sharePending);
+  if (result === 'saved') showToast('战绩图已保存，文案已复制');
+  else if (result === 'saved-image') showToast('战绩图已保存');
+});
 ui['sound-button'].addEventListener('click', () => {
   muted = !muted;
   writeStorage('jike-run-muted', muted);
@@ -392,6 +400,16 @@ function updateUI() {
       ui['result-caption'].hidden = record;
       ui['result-eyebrow'].textContent = record ? 'A LITTLE FALL. A NEW RECORD.' : 'MISSION: TEMPORARILY FAILED';
       writeStorage('jike-run-best', best);
+      ui['share-button'].hidden = true;
+      sharePending = null;
+      if (record && !state.jicoins) {
+        const card = { score: state.score, meters: Math.floor(state.distance / 10), city: cityStyle(renderer.city) };
+        prepareShareCard(ui['game-canvas'], card).then((prepared) => {
+          if (game.state.phase !== 'gameover') return;
+          sharePending = prepared;
+          ui['share-button'].hidden = false;
+        });
+      }
     }
   }
   ui.score.textContent = String(state.score).padStart(5, '0');
